@@ -17,7 +17,8 @@
     
     "permissions": [
       "storage",
-      "offscreen"
+      "offscreen",
+      "unlimitedStorage"
     ],
     
     "content_scripts": [

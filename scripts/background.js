@@ -6,13 +6,6 @@ let db = null; // Database connection reference
 
 console.log("Background service worker started.");
 
-// Placeholder function (implement later)
-// async function processPageData(pageData) {
-//   // 1. Store temporarily? (Optional)
-//   // 2. Call Summarization API
-//   // 3. Call Embedding API / Use Library
-//   // 4. Store final data in IndexedDB
-// }
 
 
 function initDB() {
@@ -22,35 +15,49 @@ function initDB() {
             return;
         }
         console.log('Initializing IndexedDB...');
-        const request = self.indexedDB.open(DB_NAME, DB_VERSION);
+        // Delete any existing database first (sometimes helps with visibility issues)
+        let deleteRequest = self.indexedDB.deleteDatabase(DB_NAME);
+        deleteRequest.onsuccess = () => {
+            console.log('Successfully deleted old database (if it existed)');
+            // Now create a fresh database
+            const request = self.indexedDB.open(DB_NAME, DB_VERSION);
+            
+            request.onupgradeneeded = (event) => {
+                console.log('IndexedDB upgrade needed.');
+                const database = event.target.result;
+                if (!database.objectStoreNames.contains(STORE_NAME)) {
+                    console.log(`Creating object store: ${STORE_NAME}`);
+                    const store = database.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
+                    // Create indexes
+                    store.createIndex('url', 'url', { unique: false });
+                    store.createIndex('timestamp', 'timestamp', { unique: false });
+                    console.log('Object store and indexes created.');
+                }
+            };
 
-        request.onupgradeneeded = (event) => {
-            console.log('IndexedDB upgrade needed.');
-            const database = event.target.result;
-            if (!database.objectStoreNames.contains(STORE_NAME)) {
-                console.log(`Creating object store: ${STORE_NAME}`);
-                const store = database.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
-                // Create indexes for searching/lookup
-                store.createIndex('url', 'url', { unique: false }); // URL might not be unique if visited multiple times
-                store.createIndex('timestamp', 'timestamp', { unique: false });
-                store.createIndex('hasEmbedding', 'embedding', { unique: false, multiEntry: false }); // Index based on whether embedding exists (not the value itself)
-                console.log('Object store and indexes created.');
-            }
+            request.onsuccess = (event) => {
+                console.log('IndexedDB initialized successfully.');
+                db = event.target.result;
+                
+                // Log all object stores in this database to verify
+                console.log('Available object stores:', Array.from(db.objectStoreNames));
+                
+                resolve(db);
+            };
+
+            request.onerror = (event) => {
+                console.error('IndexedDB initialization error:', event.target.error);
+                reject(`IndexedDB error: ${event.target.error}`);
+            };
         };
-
-        request.onsuccess = (event) => {
-            console.log('IndexedDB initialized successfully.');
-            db = event.target.result;
-            resolve(db);
-        };
-
-        request.onerror = (event) => {
-            console.error('IndexedDB initialization error:', event.target.error);
-            reject(`IndexedDB error: ${event.target.error}`);
+        
+        deleteRequest.onerror = (event) => {
+            console.error('Error deleting old database:', event.target.error);
+            // Still try to continue
+            // (rest of the code from above...)
         };
     });
 }
-
 
 function addPageData(pageDataObject) {
     return new Promise(async (resolve, reject) => {
@@ -254,10 +261,22 @@ initDB().catch(console.error);
 
 console.log("Background service worker started (v3 with DB & Summary Integration).");
 
-self.addEventListener('activate', (event) => {
+
+
+  self.addEventListener('install', (event) => {
+    console.log('Service worker installing...');
+    // Force immediate activation
+    self.skipWaiting();
+  });
+  
+  self.addEventListener('activate', (event) => {
     console.log('Service worker activated');
+    // Take control of all pages immediately
+    event.waitUntil(clients.claim());
+    // Initialize DB
     event.waitUntil(initDB().catch(console.error));
   });
+  
 
 // Placeholder function (will be integrated into the listener)
 // async function processPageData(pageData) {
