@@ -225,18 +225,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         // Process asynchronously
         (async () => {
             try {
-                const storage = await chrome.storage.local.get(['geminiApiKey', 'huggingfaceApiKey']);
-                const geminiApiKey = storage.geminiApiKey;
-                const huggingfaceApiKey = storage.huggingfaceApiKey;
+                const geminiApiKey = await chrome.storage.local.get('geminiApiKey');
+                const huggingfaceApiKey = await chrome.storage.local.get('huggingfaceApiKey');
 
-                if (!geminiApiKey || !huggingfaceApiKey) {
+                if (!geminiApiKey.geminiApiKey || !huggingfaceApiKey.huggingfaceApiKey) {
                     console.error("Cannot process page: API Keys not found in storage.");
                     sendResponse({ status: "error", message: "API keys not configured" });
                     return;
                 }
 
                 // 1. Get Summary
-                const summary = await getSummary(apiKey, message.data.textContent);
+                const summary = await getSummary(geminiApiKey.geminiApiKey, message.data.textContent);
 
                 if (!summary) {
                     console.warn("Failed to get summary for:", message.data.url);
@@ -254,7 +253,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                     return;
                 }
 
-                const embedding = await getEmbedding(huggingfaceApiKey, summary);
+                const embedding = await getEmbedding(huggingfaceApiKey.huggingfaceApiKey, summary);
 
 
                 // 2. Prepare data for storage (embedding is null for now)
