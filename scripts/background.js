@@ -100,7 +100,7 @@ initDB().catch(console.error);
 
 console.log("Background service worker started (v2 with DB init).");
 
-const GEMINI_API_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta2/models/gemini-2.0-flash-thinking-exp-01-21:generate"
+const GEMINI_API_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
 // check to ensure this is correct api endpoint
 
 
@@ -119,7 +119,7 @@ async function getSummary(apiKey, textContent) {
     const requestBody = {
         contents: [{
             parts: [{
-                text: `Please provide a concise summary (around 100-150 words) of the following web page content:\n\n${truncatedText}`
+                text: `Please provide a concise summary, 150-300 words of the following web page content:\n\n${truncatedText}`
             }]
         }],
         // Optional: Add safetySettings, generationConfig if needed
