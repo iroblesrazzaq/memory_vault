@@ -22,7 +22,7 @@ function initDB() {
             return;
         }
         console.log('Initializing IndexedDB...');
-        const request = indexedDB.open(DB_NAME, DB_VERSION);
+        const request = self.indexedDB.open(DB_NAME, DB_VERSION);
 
         request.onupgradeneeded = (event) => {
             console.log('IndexedDB upgrade needed.');
@@ -55,32 +55,40 @@ function initDB() {
 function addPageData(pageDataObject) {
     return new Promise(async (resolve, reject) => {
         try {
-            const database = await initDB(); // Ensure DB is initialized
+            const database = await initDB();
             const transaction = database.transaction([STORE_NAME], 'readwrite');
             const store = transaction.objectStore(STORE_NAME);
             
-            // Add the data - IndexedDB handles the auto-incrementing ID
+            // Log the data just before adding
+            console.log("Attempting to add to IndexedDB:", JSON.stringify(pageDataObject).substring(0, 300) + "..."); 
+
             const request = store.add(pageDataObject);
+            let generatedId = null; // Variable to hold the ID
 
             request.onsuccess = (event) => {
-                console.log('Page data added to IndexedDB with ID:', event.target.result);
-                resolve(event.target.result); // Resolve with the new ID
+                generatedId = event.target.result; // Store the ID when request succeeds
+                console.log('IndexedDB store.add request successful. ID assigned:', generatedId);
+                // DO NOT RESOLVE HERE YET!
             };
 
             request.onerror = (event) => {
-                console.error('Error adding page data to IndexedDB:', event.target.error);
-                reject(`Error adding data: ${event.target.error}`);
+                console.error('Error during store.add request:', event.target.error);
+                // Rejecting here will also trigger transaction.onerror usually
+                reject(`Error adding data (request.onerror): ${event.target.error}`);
             };
 
+            // **** MOST IMPORTANT LOG ****
             transaction.oncomplete = () => {
-                 // Transaction completed successfully (data implicitly saved)
-                 // Resolve was already called by request.onsuccess
+                console.log('IndexedDB ADD transaction completed successfully. Data should be saved.');
+                // Now we resolve, passing the ID we captured earlier
+                resolve(generatedId); 
             };
 
             transaction.onerror = (event) => {
-                console.error('IndexedDB transaction error:', event.target.error);
-                reject(`Transaction error: ${event.target.error}`);
+                console.error('IndexedDB ADD transaction error:', event.target.error);
+                reject(`Transaction error (transaction.onerror): ${event.target.error}`);
             };
+
         } catch (error) {
              console.error('Failed to initiate addPageData transaction:', error);
              reject(error);
@@ -246,7 +254,10 @@ initDB().catch(console.error);
 
 console.log("Background service worker started (v3 with DB & Summary Integration).");
 
-
+self.addEventListener('activate', (event) => {
+    console.log('Service worker activated');
+    event.waitUntil(initDB().catch(console.error));
+  });
 
 // Placeholder function (will be integrated into the listener)
 // async function processPageData(pageData) {
