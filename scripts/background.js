@@ -182,6 +182,41 @@ async function getSummary(apiKey, textContent) {
     }
 }
 
+
+async function getEmbedding(apiKey, textToEmbed) {
+    // Choose one of the following approaches:
+    
+    // OPTION 1: Use Hugging Face Inference API (easiest, has free tier)
+    const embeddingEndpoint = "https://api-inference.huggingface.co/models/BAAI/bge-large-en-v1.5";
+    
+    try {
+        console.log("Requesting embedding for text length:", textToEmbed.length);
+        
+        const response = await fetch(embeddingEndpoint, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${apiKey}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ inputs: textToEmbed }),
+        });
+
+        if (!response.ok) {
+            const errorBody = await response.text();
+            console.error(`Embedding API Error: ${response.status} ${response.statusText}`, errorBody);
+            throw new Error(`Embedding API request failed with status ${response.status}`);
+        }
+
+        const data = await response.json();
+        console.log("Embedding received, dimension:", data.length);
+        return data;
+    } catch (error) {
+        console.error("Error calling Embedding API:", error);
+        return null;
+    }
+}
+
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     // Handle page data capture
     if (message.type === 'pageData') {
@@ -190,13 +225,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         // Process asynchronously
         (async () => {
             try {
-                const storage = await chrome.storage.local.get('geminiApiKey');
-                const apiKey = storage.geminiApiKey;
+                const storage = await chrome.storage.local.get(['geminiApiKey', 'huggingfaceApiKey']);
+                const geminiApiKey = storage.geminiApiKey;
+                const huggingfaceApiKey = storage.huggingfaceApiKey;
 
-                if (!apiKey) {
-                    console.error("Cannot process page: Gemini API Key not found in storage.");
-                    sendResponse({ status: "error", message: "API key not configured" });
-                    return; // Stop processing this message
+                if (!geminiApiKey || !huggingfaceApiKey) {
+                    console.error("Cannot process page: API Keys not found in storage.");
+                    sendResponse({ status: "error", message: "API keys not configured" });
+                    return;
                 }
 
                 // 1. Get Summary
@@ -210,7 +246,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                         title: message.data.title,
                         timestamp: message.data.timestamp,
                         summary: null, // Explicitly null
-                        embedding: null, // Embedding not yet implemented
+                        embedding: null, // no embedding without summary
                         originalWordCount: message.data.wordCount // Keep original count
                     };
                     await addPageData(pageDataObject);
@@ -218,13 +254,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                     return;
                 }
 
+                const embedding = await getEmbedding(huggingfaceApiKey, summary);
+
+
                 // 2. Prepare data for storage (embedding is null for now)
                  const pageDataObject = {
                     url: message.data.url,
                     title: message.data.title,
                     timestamp: message.data.timestamp,
                     summary: summary,
-                    embedding: null, // Placeholder for Phase 1 Embedding task
+                    embedding: embedding, // Placeholder for Phase 1 Embedding task
                     originalWordCount: message.data.wordCount
                 };
 
