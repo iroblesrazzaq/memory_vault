@@ -16,8 +16,7 @@
     },
     
     "permissions": [
-      "storage",
-      "activeTab"
+      "storage"
     ],
     
     "content_scripts": [
@@ -25,5 +24,6 @@
         "js": ["scripts/content.js"],
         "matches": ["<all_urls>"]
       }
-    ]
+    ],
+    "background": { "service_worker": "background.js" }
   }
