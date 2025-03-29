@@ -29,6 +29,6 @@
     "background": { "service_worker": "scripts/background.js" },
 
     "host_permissions": [ 
-      "*.googleapis.com"   
+    "https://*.googleapis.com/"
     ]
   }

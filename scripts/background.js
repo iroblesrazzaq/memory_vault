@@ -4,21 +4,6 @@ const STORE_NAME = 'pages';
 let db = null; // Database connection reference
 
 
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.type === 'pageData') {
-        console.log("Received page data in background:", message.data);
-        // Placeholder for future processing:
-
-        // TODO: Implement processPageData(message.data);
-
-        // processPageData(message.data);
-        // Indicate success (optional, can be async)
-        sendResponse({ status: "received by background" });        
-        // Return true if sendResponse will be called asynchronously
-        return true; // Uncommented
-    }
-});
-
 console.log("Background service worker started.");
 
 // Placeholder function (implement later)
@@ -115,10 +100,157 @@ initDB().catch(console.error);
 
 console.log("Background service worker started (v2 with DB init).");
 
+const GEMINI_API_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta2/models/gemini-2.0-flash-thinking-exp-01-21:generate"
+// check to ensure this is correct api endpoint
+
+
+async function getSummary(apiKey, textContent) {
+    if (!apiKey) {
+        console.error("Gemini API Key is missing.");
+        return null;
+    }
+    // Reduce text size to fit within potential token limits and speed up processing
+    // You might adjust this limit based on testing and model requirements
+    const MAX_TEXT_LENGTH = 15000; // Example limit (characters)
+    const truncatedText = textContent.length > MAX_TEXT_LENGTH
+        ? textContent.substring(0, MAX_TEXT_LENGTH) + "..." // Indicate truncation
+        : textContent;
+
+    const requestBody = {
+        contents: [{
+            parts: [{
+                text: `Please provide a concise summary (around 100-150 words) of the following web page content:\n\n${truncatedText}`
+            }]
+        }],
+        // Optional: Add safetySettings, generationConfig if needed
+        // generationConfig: {
+        //   temperature: 0.7,
+        //   topK: 40,
+        //   // ... other params
+        // }
+    };
+
+    console.log("Requesting summary from Gemini for text length:", truncatedText.length);
+
+    try {
+        const response = await fetch(`${GEMINI_API_ENDPOINT}?key=${apiKey}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(requestBody),
+        });
+
+        if (!response.ok) {
+            const errorBody = await response.text();
+            console.error(`Gemini API Error: ${response.status} ${response.statusText}`, errorBody);
+            throw new Error(`API request failed with status ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (data.candidates && data.candidates.length > 0 &&
+            data.candidates[0].content && data.candidates[0].content.parts &&
+            data.candidates[0].content.parts.length > 0 && data.candidates[0].content.parts[0].text)
+        {
+            const summary = data.candidates[0].content.parts[0].text.trim();
+            console.log("Summary received from Gemini:", summary.substring(0, 100) + "...");
+            return summary;
+        } else {
+            console.warn("Could not extract summary from Gemini response structure:", data);
+            return null; // Or a default message like "Summary unavailable"
+        }
+
+    } catch (error) {
+        console.error("Error calling Gemini API:", error);
+        return null;
+    }
+}
+
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    // Handle page data capture
+    if (message.type === 'pageData') {
+        console.log("Received page data message, processing asynchronously...");
+
+        // Process asynchronously
+        (async () => {
+            try {
+                const storage = await chrome.storage.local.get('geminiApiKey');
+                const apiKey = storage.geminiApiKey;
+
+                if (!apiKey) {
+                    console.error("Cannot process page: Gemini API Key not found in storage.");
+                    sendResponse({ status: "error", message: "API key not configured" });
+                    return; // Stop processing this message
+                }
+
+                // 1. Get Summary
+                const summary = await getSummary(apiKey, message.data.textContent);
+
+                if (!summary) {
+                    console.warn("Failed to get summary for:", message.data.url);
+                     // Decide: Store anyway with null summary, or skip? Let's store basic info.
+                     const pageDataObject = {
+                        url: message.data.url,
+                        title: message.data.title,
+                        timestamp: message.data.timestamp,
+                        summary: null, // Explicitly null
+                        embedding: null, // Embedding not yet implemented
+                        originalWordCount: message.data.wordCount // Keep original count
+                    };
+                    await addPageData(pageDataObject);
+                    sendResponse({ status: "warning", message: "Stored basic info, but summarization failed" });
+                    return;
+                }
+
+                // 2. Prepare data for storage (embedding is null for now)
+                 const pageDataObject = {
+                    url: message.data.url,
+                    title: message.data.title,
+                    timestamp: message.data.timestamp,
+                    summary: summary,
+                    embedding: null, // Placeholder for Phase 1 Embedding task
+                    originalWordCount: message.data.wordCount
+                };
+
+                // 3. Store in IndexedDB
+                const storedItemId = await addPageData(pageDataObject);
+                console.log(`Successfully processed and stored page data (ID: ${storedItemId}) for:`, message.data.url);
+                sendResponse({ status: "success", message: `Data stored with ID ${storedItemId}` });
+
+            } catch (error) {
+                console.error("Error processing page data in background:", error);
+                sendResponse({ status: "error", message: error.message || "Unknown processing error" });
+            }
+        })(); // Immediately invoke the async function
+
+        // Return true IMMEDIATELY to indicate that sendResponse will be called asynchronously.
+        return true;
+    }
+
+    // Handle search queries (Phase 2)
+    else if (message.type === 'searchQuery') {
+        console.log("Received search query:", message.query);
+        // TODO: Implement search logic in Phase 2
+        sendResponse({ status: "pending", results: [] }); // Placeholder response
+        return true; // Indicate async response
+    }
+
+    // Handle other message types if needed
+    // else { ... }
+
+}); // End of addListener
+
+// Call initDB when the service worker starts
+initDB().catch(console.error);
+
+console.log("Background service worker started (v3 with DB & Summary Integration).");
+
+
 
 // Placeholder function (will be integrated into the listener)
 // async function processPageData(pageData) {
-//   // 1. Call Summarization API
+//   // 1. Call Summarization API - done
 //   // 2. Call Embedding API / Use Library
 //   // 3. Store final data in IndexedDB using addPageData()
 // }
