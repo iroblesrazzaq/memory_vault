@@ -1,27 +1,29 @@
 {
     "manifest_version": 3,
-    "name": "Reading time",
+    "name": "Page Text Extractor",
     "version": "1.0",
-    "description": "Add the reading time to Chrome Extension documentation articles",
+    "description": "Extracts and stores text content from all webpages for semantic search",
     
     "action": {
-        "default_popup": "hello.html"
+      "default_popup": "popup.html"
     },
-
-
+  
     "icons": {
       "16": "images/icon-16.png",
       "32": "images/icon-32.png",
       "48": "images/icon-48.png",
       "128": "images/icon-128.png"
     },
+    
+    "permissions": [
+      "storage",
+      "activeTab"
+    ],
+    
     "content_scripts": [
       {
         "js": ["scripts/content.js"],
-        "matches": [
-          "https://developer.chrome.com/docs/extensions/*",
-          "https://developer.chrome.com/docs/webstore/*"
-        ]
+        "matches": ["<all_urls>"]
       }
     ]
   }
