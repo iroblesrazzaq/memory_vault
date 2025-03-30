@@ -184,32 +184,57 @@ async function getSummary(apiKey, textContent) {
 
 
 async function getEmbedding(apiKey, textToEmbed) {
-    // Choose one of the following approaches:
-    
-    // OPTION 1: Use Hugging Face Inference API (easiest, has free tier)
-    const embeddingEndpoint = "https://api-inference.huggingface.co/models/BAAI/bge-large-en-v1.5";
-    
+    // Endpoint without the API key in the query parameter
+    const embeddingEndpoint = "https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent";
+
     try {
         console.log("Requesting embedding for text length:", textToEmbed.length);
-        
+
+        const requestBody = {
+            model: "models/text-embedding-004", // Specify the model being used
+            content: {
+                parts: [{ text: textToEmbed }] // Correct structure for embedding content
+            }
+        };
+
         const response = await fetch(embeddingEndpoint, {
             method: 'POST',
             headers: {
-                'Authorization': `Bearer ${apiKey}`,
+                // *** Use the specific header for API Keys ***
+                'x-goog-api-key': apiKey,
                 'Content-Type': 'application/json',
+                // Make sure there isn't an 'Authorization: Bearer ...' header here
+                // unless your apiKey variable *actually* holds a Bearer token (which is unlikely here)
             },
-            body: JSON.stringify({ inputs: textToEmbed }),
+            body: JSON.stringify(requestBody),
         });
 
         if (!response.ok) {
-            const errorBody = await response.text();
-            console.error(`Embedding API Error: ${response.status} ${response.statusText}`, errorBody);
-            throw new Error(`Embedding API request failed with status ${response.status}`);
+            const errorBody = await response.text(); // Get the full error response text
+            console.error(`Embedding API Error: ${response.status} ${response.statusText}`, errorBody); // Log the full body
+
+            // Try to parse the error for a cleaner message, fallback to raw text
+            let detail = errorBody;
+            try {
+               const errJson = JSON.parse(errorBody);
+               // Use the message from the structured error if available
+               detail = errJson.error?.message || errorBody;
+            } catch(e) { /* ignore json parsing error */ }
+
+            throw new Error(`Embedding API request failed with status ${response.status}: ${detail}`);
         }
 
         const data = await response.json();
-        console.log("Embedding received, dimension:", data.length);
-        return data;
+
+        // Check the expected structure for the embedding result
+        if (data.embedding && data.embedding.values) {
+             console.log("Embedding received, dimension:", data.embedding.values.length);
+             return data.embedding.values; // Return the actual vector array
+        } else {
+             console.warn("Could not extract embedding from Gemini response structure:", data);
+             return null; // Or handle as appropriate
+        }
+
     } catch (error) {
         console.error("Error calling Embedding API:", error);
         return null;
@@ -226,9 +251,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         (async () => {
             try {
                 const geminiApiKey = await chrome.storage.local.get('geminiApiKey');
-                const huggingfaceApiKey = await chrome.storage.local.get('huggingfaceApiKey');
 
-                if (!geminiApiKey.geminiApiKey || !huggingfaceApiKey.huggingfaceApiKey) {
+                if (!geminiApiKey.geminiApiKey) {
                     console.error("Cannot process page: API Keys not found in storage.");
                     sendResponse({ status: "error", message: "API keys not configured" });
                     return;
@@ -253,7 +277,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                     return;
                 }
 
-                const embedding = await getEmbedding(huggingfaceApiKey.huggingfaceApiKey, summary);
+                const embedding = await getEmbedding(geminiApiKey.geminiApiKey, summary);
 
 
                 // 2. Prepare data for storage (embedding is null for now)
