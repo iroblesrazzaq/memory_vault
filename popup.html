@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Page Text Extractor</title>
+  <style>
+    /* ... (keep existing styles) ... */
+    button#openDashboard { /* Style the new button */
+        background-color: #0f9d58; /* Green */
+        margin-right: 10px; /* Add space if needed */
+    }
+    button#openDashboard:hover {
+         background-color: #0a8f4c;
+    }
+  </style>
+</head>
+<body>
+  <h1>Page Text Extractor</h1>
+
+  <div class="stats">
+    <div>Pages stored: <span id="pageCount">0</span></div>
+    <div>Storage used: <span id="storageSize">0 KB</span></div>
+  </div>
+
+  <h2>Recent Pages</h2>
+  <div class="page-list" id="pageList">
+    <!-- Pages will be dynamically added here -->
+  </div>
+
+  <div class="buttons">
+    <!-- ADD THIS BUTTON -->
+    <button id="openDashboard">Open Search Dashboard</button>
+    <button id="clearData">Clear All Data</button>
+  </div>
+
+  <script src="scripts/popup.js"></script>
+</body>
+</html>
