@@ -38,9 +38,26 @@ document.addEventListener('DOMContentLoaded', function() {
         // ** TODO: Send SEARCH query to background script **
         console.log(`TODO: Send query "${query}" to background script FOR SEARCH.`);
         setTimeout(() => {
-             if (resultsDiv.innerHTML === '' && !resultsDiv.querySelector('.status-message')?.textContent.toLowerCase().includes('searching')) {
-                displayStatus(`Search for "${query}" initiated. No results yet.`);
+             // --- FIX START ---
+             // First, try to find the status message element *inside resultsDiv*
+             const statusMessageElement = resultsDiv.querySelector('.status-message');
+
+             // Check if it still exists and says "searching"
+             const isStillSearching = statusMessageElement && statusMessageElement.textContent.toLowerCase().includes('searching');
+
+             // Display the "initiated, no results yet" message ONLY IF
+             // the results area is currently empty AND it's not displaying the "searching" message.
+             // (Or adjust logic if you want different behavior)
+             if (resultsDiv.innerHTML.trim() === '' && !isStillSearching) {
+                 displayStatus(`Search for "${query}" initiated. No results yet.`);
              }
+             // Alternate simpler logic: If nothing happened after 2s (results still empty OR just shows 'searching'), show message.
+             // const resultsAreEmpty = resultsDiv.innerHTML.trim() === '';
+             // if ((resultsAreEmpty || isStillSearching) && resultsDiv.children.length <= 1) { // Check if only the status msg is there or empty
+             //      displayStatus(`Search for "${query}" initiated. No results yet.`);
+             // }
+
+             // --- FIX END ---
         }, 2000);
     }
 
