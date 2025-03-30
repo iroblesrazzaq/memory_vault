@@ -1,0 +1,4 @@
+# Ignore Python virtual environment and dependencies
+Backend/ext/
+*.so
+*.dylib
