@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Semantic History Search</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+  <style>
+    body {
+      width: 400px;
+      height: 500px;
+      overflow-y: auto;
+    }
+    .result-item {
+      transition: all 0.2s ease;
+    }
+    .result-item:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    .loading {
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    .score-indicator {
+      width: 40px;
+      height: 8px;
+      background: linear-gradient(to right, #f3f4f6 0%, #60a5fa 100%);
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body class="bg-gray-100 text-gray-800 p-4">
+  <div class="flex flex-col h-full">
+    <header class="mb-4">
+      <h1 class="text-xl font-bold text-blue-600">Semantic History Search</h1>
+      <p class="text-sm text-gray-500">Find pages based on what you remember about them</p>
+    </header>
+    
+    <div class="search-container mb-4">
+      <div class="flex items-center bg-white rounded-lg shadow-sm p-2 border border-gray-300">
+        <input 
+          id="search-input" 
+          type="text" 
+          placeholder="Search your history (e.g., 'funny videos', 'recipe I saw yesterday')" 
+          class="flex-grow outline-none px-2 py-1"
+        >
+        <button 
+          id="search-button"
+          class="bg-blue-500 hover:bg-blue-600 text-white rounded px-3 py-1 ml-2 text-sm"
+        >
+          Search
+        </button>
+      </div>
+      
+      <div class="mt-2 flex justify-between items-center">
+        <div id="query-suggestions" class="flex flex-wrap gap-1">
+          <button class="suggestion-tag bg-gray-200 hover:bg-gray-300 rounded-full px-2 py-1 text-xs">funny videos</button>
+          <button class="suggestion-tag bg-gray-200 hover:bg-gray-300 rounded-full px-2 py-1 text-xs">tech news</button>
+          <button class="suggestion-tag bg-gray-200 hover:bg-gray-300 rounded-full px-2 py-1 text-xs">recipes</button>
+        </div>
+      </div>
+    </div>
+    
+    <div id="status-container" class="bg-blue-50 rounded p-3 mb-4 text-sm text-blue-800 hidden">
+      <div id="status-message">Processing your history...</div>
+      <div class="mt-1 text-xs text-blue-600" id="status-detail"></div>
+    </div>
+    
+    <div id="results-container" class="flex-grow overflow-y-auto">
+      <div id="initial-state" class="flex flex-col items-center justify-center h-56 text-gray-400">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        </svg>
+        <p class="mt-2">Search your browsing history semantically</p>
+        <p class="text-sm mt-1">Try searching for a topic, not just keywords</p>
+      </div>
+      
+      <div id="loading-indicator" class="flex flex-col items-center justify-center h-56 text-blue-500 hidden">
+        <div class="loading">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+        </div>
+        <p class="mt-2">Searching...</p>
+      </div>
+      
+      <div id="no-results" class="flex flex-col items-center justify-center h-56 text-gray-500 hidden">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <p class="mt-2">No matching results found</p>
+        <p class="text-sm mt-1">Try a different search term</p>
+      </div>
+      
+      <div id="results-list" class="hidden">
+        <!-- Results will be inserted here -->
+      </div>
+    </div>
+    
+    <footer class="mt-4 text-xs text-gray-500 flex justify-between items-center border-t pt-2">
+      <div id="stats-container">
+        Pages indexed: <span id="pages-count">0</span>
+      </div>
+      <button id="settings-button" class="text-blue-500 hover:text-blue-700">
+        Settings
+      </button>
+    </footer>
+  </div>
+  
+  <script src="popup.js"></script>
+</body>
+</html>

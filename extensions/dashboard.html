@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Semantic History - Dashboard</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+  <style>
+    .card {
+      transition: all 0.3s ease;
+    }
+    .card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    }
+  </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+  <div class="container mx-auto px-4 py-8">
+    <header class="mb-10 text-center">
+      <h1 class="text-3xl font-bold text-blue-600 mb-2">Semantic History Dashboard</h1>
+      <p class="text-gray-600">Monitor the status of your semantic browser history</p>
+    </header>
+    
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+      <!-- Pages Card -->
+      <div class="card bg-white rounded-lg shadow-md p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-xl font-semibold text-gray-800">Indexed Pages</h2>
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+        </div>
+        <div class="text-4xl font-bold text-gray-700 mb-2" id="pages-count">0</div>
+        <p class="text-sm text-gray-500" id="last-processed">Last processed: Never</p>
+      </div>
+      
+      <!-- Google API Status Card -->
+      <div class="card bg-white rounded-lg shadow-md p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-xl font-semibold text-gray-800">Google API Status</h2>
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+          </svg>
+        </div>
+        <div class="mb-4">
+          <div class="text-sm font-medium text-gray-500 mb-1">Connection Status:</div>
+          <div class="text-lg font-semibold" id="api-status">Checking...</div>
+        </div>
+        <div class="text-sm text-gray-500" id="api-model">Model: Loading...</div>
+      </div>
+      
+      <!-- Storage Card -->
+      <div class="card bg-white rounded-lg shadow-md p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-xl font-semibold text-gray-800">Storage Usage</h2>
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
+          </svg>
+        </div>
+        <div class="flex items-center mb-2">
+          <div class="text-4xl font-bold text-gray-700" id="storage-size">0</div>
+          <div class="text-lg ml-1">KB</div>
+        </div>
+        <div class="w-full bg-gray-200 rounded-full h-2.5 mb-2">
+          <div id="storage-bar" class="bg-blue-600 h-2.5 rounded-full" style="width: 0%"></div>
+        </div>
+        <p class="text-sm text-gray-500"><span id="storage-percent">0%</span> of estimated quota</p>
+      </div>
+    </div>
+    
+    <div class="bg-white rounded-lg shadow-md p-6 mb-10">
+      <h2 class="text-xl font-semibold text-gray-800 mb-4">Recent Activity</h2>
+      <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+          <thead>
+            <tr>
+              <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
+              <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">URL</th>
+              <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Processed</th>
+              <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Has Embedding</th>
+            </tr>
+          </thead>
+          <tbody class="bg-white divide-y divide-gray-200" id="recent-pages">
+            <tr>
+              <td class="px-6 py-4 text-sm text-gray-500" colspan="4">No pages processed yet</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    
+    <div class="flex flex-col md:flex-row gap-6 mb-10">
+      <div class="w-full md:w-1/2 bg-white rounded-lg shadow-md p-6">
+        <h2 class="text-xl font-semibold text-gray-800 mb-4">Actions</h2>
+        <div class="flex flex-wrap gap-4">
+          <button id="process-history" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium">
+            Process History
+          </button>
+          <button id="test-google-api" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-md text-sm font-medium">
+            Test Google API
+          </button>
+          <button id="clear-data" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md text-sm font-medium">
+            Clear All Data
+          </button>
+          <button id="go-to-settings" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md text-sm font-medium">
+            Settings
+          </button>
+          <button id="test-simple" class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-md text-sm font-medium">
+            Simple Test
+          </button>
+        </div>
+        <div id="action-status" class="mt-4 p-3 rounded-md hidden"></div>
+      </div>
+      
+      <div class="w-full md:w-1/2 bg-white rounded-lg shadow-md p-6">
+        <h2 class="text-xl font-semibold text-gray-800 mb-4">Search Test</h2>
+        <div class="flex gap-2 mb-4">
+          <input 
+            id="search-input" 
+            type="text" 
+            placeholder="Test a semantic search query" 
+            class="flex-grow px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+          >
+          <button 
+            id="search-button"
+            class="bg-blue-500 hover:bg-blue-600 text-white rounded px-4 py-2 text-sm font-medium"
+          >
+            Search
+          </button>
+        </div>
+        <div id="search-results" class="max-h-60 overflow-y-auto p-2 border border-gray-200 rounded-md bg-gray-50">
+          <p class="text-sm text-gray-500">Search results will appear here</p>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Debug status display (no inline script - just a display area) -->
+    <div id="debug-output" class="bg-gray-800 text-white p-4 rounded-md text-xs overflow-auto max-h-40 mb-8">
+      <p>Debug messages will appear here</p>
+    </div>
+  </div>
+  
+  <script src="dashboard.js"></script>
+</body>
+</html>
