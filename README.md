@@ -21,3 +21,6 @@ A proof-of-concept Chrome extension (built for a hackathon) demonstrating semant
 This project served as an exercise in working with MV3 constraints, asynchronous messaging, browser storage limitations, and integrating AI embedding models into a browser extension workflow.
 
 ---
+
+![Uploading Screenshot 2025-03-30 at 03.00.03.png…]()
+
