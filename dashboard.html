@@ -4,11 +4,10 @@
     <meta charset="UTF-8">
     <title>Semantic Search Dashboard</title>
     <style>
-        <style>
     body {
         font-family: Arial, sans-serif;
         padding: 20px;
-        max-width: 1100px; /* Increased max-width for wider layout */
+        max-width: 1200px;
         margin: 20px auto;
     }
 
@@ -18,25 +17,36 @@
         margin-bottom: 30px;
     }
 
-    /* Flex container for the main layout */
+    /* Three-column layout */
     .dashboard-container {
         display: flex;
-        gap: 30px; /* Space between main content and sidebar */
-        align-items: flex-start; /* Align items to the top */
+        align-items: flex-start;
+
     }
 
+    /* Left empty column for symmetry */
+    #leftColumn {
+        flex-basis: 280px;
+        flex-shrink: 0;
+    }
+
+    /* Center main content */
     #mainContent {
-        flex: 1; /* Allow main content to grow */
-        min-width: 0; /* Important for flex items to shrink properly */
+        flex: 1;
+        min-width: 0;
+        max-width: 600px;
+        margin: 0 auto;
     }
 
+    /* Right sidebar */
     #sidebar {
-        flex-basis: 280px; /* Slightly wider sidebar */
-        flex-shrink: 0; /* Prevent sidebar from shrinking */
-        border: 1px solid #eee; /* Add border for visual separation */
+        flex-basis: 280px;
+        flex-shrink: 0;
+        border: 1px solid #eee;
         border-radius: 5px;
         padding: 15px;
         background-color: #fdfdfd;
+        
     }
 
     .search-container {
@@ -63,11 +73,17 @@
         cursor: pointer;
         transition: background-color 0.2s ease;
     }
-    #searchButton:hover { background-color: #3367d6; }
+    
+    #searchButton:hover { 
+        background-color: #3367d6; 
+    }
 
-    #results { margin-top: 20px; padding-top: 0; }
+    #results { 
+        margin-top: 20px; 
+        padding-top: 0; 
+    }
 
-    /* Refined search results */
+    /* Search results styling */
     .result-item {
         background-color: #f9f9f9;
         border: 1px solid #eee;
@@ -105,7 +121,6 @@
         word-break: break-all;
     }
 
-    /* Updated result display for no-summary version */
     .result-item .info {
         font-size: 0.9em;
         color: #555;
@@ -155,9 +170,9 @@
         animation: searchPulse 1.5s infinite;
     }
 
-    /* Styles for Recent Activity Sidebar */
+    /* Recent Activity Sidebar */
     #sidebar h2 {
-        font-size: 1.2em; /* Slightly larger title */
+        font-size: 1.2em;
         color: #444;
         margin-top: 0;
         margin-bottom: 15px;
@@ -169,15 +184,15 @@
         list-style: none;
         padding: 0;
         margin: 0;
-        max-height: 450px; /* Adjust height as needed */
+        max-height: 450px;
         overflow-y: auto;
     }
 
     #recentActivityList li {
-        padding: 10px 5px; /* More padding */
+        padding: 10px 5px;
         font-size: 0.9em;
         border-bottom: 1px dotted #eee;
-        cursor: pointer; /* Keep cursor pointer to indicate clickable */
+        cursor: pointer;
         transition: background-color 0.2s ease, transform 0.1s ease;
         line-height: 1.3;
     }
@@ -197,8 +212,8 @@
     #recentActivityList li .item-url {
         display: block;
         font-size: 0.85em;
-        color: #006621; /* Match results URL color */
-        word-break: break-all; /* Break long URLs */
+        color: #006621;
+        word-break: break-all;
         margin-bottom: 4px;
     }
 
@@ -207,114 +222,16 @@
         font-size: 0.8em;
         color: #888;
     }
-
-    /* Hide Clear History Button for this version */
-    #clearHistoryButton { display: none; }
-
-    /* Settings button and modal styles */
-    .settings-button-container {
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
-        z-index: 100;
-    }
-    
-    #settingsButton {
-        background: #4285f4;
-        color: white;
-        border: none;
-        border-radius: 50%;
-        width: 50px;
-        height: 50px;
-        font-size: 24px;
-        cursor: pointer;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-        transition: transform 0.2s ease;
-    }
-    
-    #settingsButton:hover {
-        transform: rotate(30deg);
-    }
-    
-    /* Modal styles */
-    .modal {
-        display: none;
-        position: fixed;
-        z-index: 200;
-        left: 0;
-        top: 0;
-        width: 100%;
-        height: 100%;
-        background-color: rgba(0,0,0,0.5);
-    }
-    
-    .modal-content {
-        background-color: #fff;
-        margin: 10% auto;
-        padding: 30px;
-        border-radius: 8px;
-        box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-        width: 80%;
-        max-width: 500px;
-        position: relative;
-    }
-    
-    .close-button {
-        position: absolute;
-        top: 15px;
-        right: 20px;
-        font-size: 24px;
-        font-weight: bold;
-        cursor: pointer;
-    }
-    
-    .form-group {
-        margin-bottom: 20px;
-    }
-    
-    .form-group label {
-        display: block;
-        margin-bottom: 8px;
-        font-weight: bold;
-    }
-    
-    .form-group input {
-        width: 100%;
-        padding: 10px;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-        font-size: 16px;
-    }
-    
-    .form-group small {
-        display: block;
-        margin-top: 5px;
-        font-size: 12px;
-        color: #666;
-    }
-    
-    .primary-button {
-        background-color: #4285f4;
-        color: white;
-        border: none;
-        border-radius: 4px;
-        padding: 10px 20px;
-        font-size: 16px;
-        cursor: pointer;
-        transition: background-color 0.2s;
-    }
-    
-    .primary-button:hover {
-        background-color: #3367d6;
-    }
-</style>
-
     </style>
 </head>
 <body>
     <h1>Semantic History Search</h1>
 
-    <div class="dashboard-container"> {/* Apply the flex container */}
+    <div class="dashboard-container">
+        <!-- New empty left column for symmetry -->
+        <div id="leftColumn"></div>
+        
+        <!-- Centered search content -->
         <div id="mainContent">
             <div class="search-container">
                 <input type="text" id="searchInput" placeholder="Enter your search query...">
@@ -325,13 +242,12 @@
             </div>
         </div>
 
+        <!-- Right sidebar with recent activity -->
         <div id="sidebar">
-            <h2>Recent Activity</h2> {/* Updated Title */}
-            <ul id="recentActivityList"> {/* Updated ID */}
+            <h2>Recent Activity</h2>
+            <ul id="recentActivityList">
                 <li class="status-message" style="font-size: 0.9em; padding: 10px;">Loading recent activity...</li>
             </ul>
-            {/* Clear History button is hidden for now as it doesn't apply directly */}
-            {/* <button id="clearHistoryButton">Clear History</button> */}
         </div>
     </div>
 
