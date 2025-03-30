@@ -29,37 +29,30 @@ document.addEventListener('DOMContentLoaded', function() {
             displayStatus("Please enter a search query.");
             return;
         }
+        
         console.log(`Search button clicked. Query: "${query}"`);
-        displayStatus("Searching...");
+        displayStatus("Searching for semantically similar content...");
         resultsDiv.innerHTML = '';
-
-        // ** No longer adding search query itself to history **
-
-        // ** TODO: Send SEARCH query to background script **
-        console.log(`TODO: Send query "${query}" to background script FOR SEARCH.`);
-        setTimeout(() => {
-             // --- FIX START ---
-             // First, try to find the status message element *inside resultsDiv*
-             const statusMessageElement = resultsDiv.querySelector('.status-message');
-
-             // Check if it still exists and says "searching"
-             const isStillSearching = statusMessageElement && statusMessageElement.textContent.toLowerCase().includes('searching');
-
-             // Display the "initiated, no results yet" message ONLY IF
-             // the results area is currently empty AND it's not displaying the "searching" message.
-             // (Or adjust logic if you want different behavior)
-             if (resultsDiv.innerHTML.trim() === '' && !isStillSearching) {
-                 displayStatus(`Search for "${query}" initiated. No results yet.`);
-             }
-             // Alternate simpler logic: If nothing happened after 2s (results still empty OR just shows 'searching'), show message.
-             // const resultsAreEmpty = resultsDiv.innerHTML.trim() === '';
-             // if ((resultsAreEmpty || isStillSearching) && resultsDiv.children.length <= 1) { // Check if only the status msg is there or empty
-             //      displayStatus(`Search for "${query}" initiated. No results yet.`);
-             // }
-
-             // --- FIX END ---
-        }, 2000);
+    
+        // Send search query to background script
+        chrome.runtime.sendMessage({ type: 'searchQuery', query: query }, (response) => {
+            if (chrome.runtime.lastError) {
+                console.error("Error sending search query:", chrome.runtime.lastError.message);
+                displayStatus(`Search error: ${chrome.runtime.lastError.message}`);
+                return;
+            }
+    
+            console.log("Search response received:", response);
+            
+            if (response && response.status === 'success') {
+                displayResults(response.results);
+            } else {
+                const errorMsg = response?.message || "Unknown error";
+                displayStatus(`Search failed: ${errorMsg}`);
+            }
+        });
     }
+    
 
 
     // --- Recent Activity Functions ---
@@ -160,10 +153,68 @@ document.addEventListener('DOMContentLoaded', function() {
     function displayStatus(message) { /* ... keep function ... */
          resultsDiv.innerHTML = `<div class="status-message">${message}</div>`;
      }
-    function displayResults(results) { /* ... keep function ... */
+     function displayResults(results) {
         resultsDiv.innerHTML = ''; // Clear previous results or status messages
-        if (!results || results.length === 0) { displayStatus("No relevant pages found for your query."); return; }
-        results.forEach(item => { /* ... create and append resultItem ... */ });
-     }
-
+        
+        if (!results || results.length === 0) { 
+            displayStatus("No semantically similar pages found for your query."); 
+            return; 
+        }
+        
+        // Create a header for the results
+        const header = document.createElement('h3');
+        header.textContent = `Found ${results.length} relevant pages`;
+        header.style.marginBottom = '20px';
+        resultsDiv.appendChild(header);
+        
+        // Display each result
+        results.forEach(item => {
+            const resultItem = document.createElement('div');
+            resultItem.className = 'result-item';
+            
+            // Title with link
+            const titleElem = document.createElement('h3');
+            const titleLink = document.createElement('a');
+            titleLink.href = item.url;
+            titleLink.textContent = item.title || 'Untitled Page';
+            titleLink.target = '_blank'; // Open in new tab
+            titleElem.appendChild(titleLink);
+            
+            // URL display
+            const urlElem = document.createElement('div');
+            urlElem.className = 'url';
+            urlElem.textContent = item.url;
+            
+            // Summary
+            const summaryElem = document.createElement('div');
+            summaryElem.className = 'summary';
+            summaryElem.textContent = item.summary || 'No summary available';
+            
+            // Similarity score
+            const scoreElem = document.createElement('div');
+            scoreElem.className = 'score';
+            const scorePercentage = Math.round(item.similarity * 100);
+            scoreElem.textContent = `Relevance: ${scorePercentage}%`;
+            
+            // Timestamp
+            const timestampElem = document.createElement('div');
+            timestampElem.className = 'timestamp';
+            try {
+                const date = new Date(item.timestamp);
+                timestampElem.textContent = `Visited: ${date.toLocaleString()}`;
+            } catch {
+                timestampElem.textContent = 'Unknown date';
+            }
+            
+            // Assemble the result item
+            resultItem.appendChild(titleElem);
+            resultItem.appendChild(urlElem);
+            resultItem.appendChild(summaryElem);
+            resultItem.appendChild(scoreElem);
+            resultItem.appendChild(timestampElem);
+            
+            resultsDiv.appendChild(resultItem);
+        });
+    }
+    
 }); // End of DOMContentLoaded

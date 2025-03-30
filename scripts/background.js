@@ -326,6 +326,86 @@ function getRecentPagesFromDB(limit = 15) { // Default limit to 15 pages
 }
 
 
+function calculateCosineSimilarity(vector1, vector2) {
+    if (!vector1 || !vector2 || vector1.length !== vector2.length) {
+        console.error("Invalid vectors for similarity calculation");
+        return 0;
+    }
+    
+    let dotProduct = 0;
+    let magnitude1 = 0;
+    let magnitude2 = 0;
+    
+    for (let i = 0; i < vector1.length; i++) {
+        dotProduct += vector1[i] * vector2[i];
+        magnitude1 += vector1[i] * vector1[i];
+        magnitude2 += vector2[i] * vector2[i];
+    }
+    
+    magnitude1 = Math.sqrt(magnitude1);
+    magnitude2 = Math.sqrt(magnitude2);
+    
+    if (magnitude1 === 0 || magnitude2 === 0) {
+        return 0;
+    }
+    
+    return dotProduct / (magnitude1 * magnitude2);
+}
+
+// Function to search pages based on query embedding
+async function searchPages(queryEmbedding, threshold = 0.5, maxResults = 10) {
+    console.log("Starting semantic search with embedding dimension:", queryEmbedding.length);
+    
+    return new Promise(async (resolve, reject) => {
+        try {
+            const database = await initDB();
+            const transaction = database.transaction([STORE_NAME], 'readonly');
+            const store = transaction.objectStore(STORE_NAME);
+            
+            const request = store.getAll();
+            
+            request.onsuccess = (event) => {
+                const allPages = event.target.result;
+                console.log(`Searching through ${allPages.length} pages with embeddings`);
+                
+                // Filter pages with valid embeddings
+                const pagesWithEmbeddings = allPages.filter(page => page.embedding && Array.isArray(page.embedding));
+                
+                // Calculate similarity for each page
+                const results = pagesWithEmbeddings.map(page => {
+                    const similarity = calculateCosineSimilarity(queryEmbedding, page.embedding);
+                    return {
+                        id: page.id,
+                        url: page.url,
+                        title: page.title,
+                        summary: page.summary,
+                        timestamp: page.timestamp,
+                        similarity: similarity
+                    };
+                });
+                
+                // Filter by threshold and sort by similarity (highest first)
+                const filteredResults = results
+                    .filter(result => result.similarity >= threshold)
+                    .sort((a, b) => b.similarity - a.similarity)
+                    .slice(0, maxResults);
+                
+                console.log(`Found ${filteredResults.length} relevant results above threshold ${threshold}`);
+                resolve(filteredResults);
+            };
+            
+            request.onerror = (event) => {
+                console.error("Error retrieving pages for search:", event.target.error);
+                reject(event.target.error);
+            };
+            
+        } catch (error) {
+            console.error("Error during semantic search:", error);
+            reject(error);
+        }
+    });
+}
+
 
 
 
@@ -396,9 +476,52 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     // Handle search queries (Phase 2)
     else if (message.type === 'searchQuery') {
-        console.log("Received search query:", message.query);
-        // TODO: Implement search logic in Phase 2
-        sendResponse({ status: "pending", results: [] }); // Placeholder response
+        console.log("BACKGROUND: Received search query:", message.query);
+        
+        (async () => {
+            try {
+                // 1. Get the API key
+                const geminiApiKey = await chrome.storage.local.get('geminiApiKey');
+                
+                if (!geminiApiKey.geminiApiKey) {
+                    console.error("Cannot process search: API Keys not found in storage.");
+                    sendResponse({ 
+                        status: "error", 
+                        message: "API keys not configured" 
+                    });
+                    return;
+                }
+                
+                // 2. Get embedding for the query
+                const queryEmbedding = await getEmbedding(geminiApiKey.geminiApiKey, message.query);
+                
+                if (!queryEmbedding) {
+                    console.error("Failed to get embedding for search query");
+                    sendResponse({ 
+                        status: "error", 
+                        message: "Failed to process search query" 
+                    });
+                    return;
+                }
+                
+                // 3. Search pages using the embedding
+                const searchResults = await searchPages(queryEmbedding, 0.4); // 0.4 threshold
+                
+                // 4. Send back results
+                sendResponse({ 
+                    status: "success", 
+                    results: searchResults 
+                });
+                
+            } catch (error) {
+                console.error("Error processing search query:", error);
+                sendResponse({ 
+                    status: "error", 
+                    message: error.message || "Unknown search error" 
+                });
+            }
+        })();
+        
         return true; // Indicate async response
     }
     else if (message.type === 'getRecentActivity') {
