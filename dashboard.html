@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Semantic Search Dashboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            max-width: 1100px; /* Increased max-width for wider layout */
+            margin: 20px auto;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+        }
+
+        /* NEW: Flex container for the main layout */
+        .dashboard-container {
+            display: flex;
+            gap: 30px; /* Space between main content and sidebar */
+            align-items: flex-start; /* Align items to the top */
+        }
+
+        #mainContent {
+            flex: 1; /* Allow main content to grow */
+            min-width: 0; /* Important for flex items to shrink properly */
+             /* Optional: Add background/border for debugging layout */
+             /* border: 1px solid blue; */
+        }
+
+        #sidebar {
+            flex-basis: 280px; /* Slightly wider sidebar */
+            flex-shrink: 0; /* Prevent sidebar from shrinking */
+            border: 1px solid #eee; /* Add border for visual separation */
+            border-radius: 5px;
+            padding: 15px;
+            background-color: #fdfdfd;
+             /* Optional: Add background/border for debugging layout */
+             /* border: 1px solid green; */
+        }
+
+        .search-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+        }
+
+        #searchInput {
+            flex-grow: 1;
+            padding: 10px 15px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        #searchButton {
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #4285f4;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+        #searchButton:hover { background-color: #3367d6; }
+
+        #results { margin-top: 20px; padding-top: 0; }
+        /* ... Keep result-item, status-message styles ... */
+         .result-item { background-color: #f9f9f9; border: 1px solid #eee; border-radius: 4px; padding: 15px; margin-bottom: 15px; transition: box-shadow 0.2s ease; }
+         .result-item:hover { box-shadow: 0 1px 5px rgba(0,0,0,0.1); }
+         .result-item h3 { margin-top: 0; margin-bottom: 5px; font-size: 1.1em; }
+         .result-item a { color: #1a0dab; text-decoration: none; }
+         .result-item a:hover { text-decoration: underline; }
+         .result-item .url { font-size: 0.9em; color: #006621; margin-bottom: 8px; word-break: break-all; }
+         .result-item .summary { font-size: 0.95em; color: #555; margin-bottom: 5px; line-height: 1.4; }
+         .result-item .score { font-size: 0.8em; color: #777; text-align: right; }
+         .status-message { text-align: center; color: #666; padding: 20px; font-style: italic; }
+
+
+        /* Styles for Recent Activity Sidebar */
+        #sidebar h2 {
+            font-size: 1.2em; /* Slightly larger title */
+            color: #444;
+            margin-top: 0;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 8px;
+        }
+
+        #recentActivityList { /* Renamed ID */
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            max-height: 450px; /* Adjust height as needed */
+            overflow-y: auto;
+        }
+
+        #recentActivityList li {
+            padding: 10px 5px; /* More padding */
+            font-size: 0.9em;
+            border-bottom: 1px dotted #eee;
+            cursor: pointer; /* Keep cursor pointer to indicate clickable */
+            transition: background-color 0.2s ease;
+            line-height: 1.3;
+        }
+        #recentActivityList li:hover { background-color: #f0f0f0; }
+
+        #recentActivityList li .item-title { /* For Page Title */
+             display: block;
+             font-weight: bold;
+             color: #333;
+             margin-bottom: 3px;
+             /* Optional: Ellipsis for long titles */
+             /* white-space: nowrap; */
+             /* overflow: hidden; */
+             /* text-overflow: ellipsis; */
+        }
+
+        #recentActivityList li .item-url { /* For URL */
+             display: block;
+             font-size: 0.85em;
+             color: #006621; /* Match results URL color */
+             word-break: break-all; /* Break long URLs */
+             margin-bottom: 4px;
+        }
+
+        #recentActivityList li .item-timestamp { /* For Timestamp */
+            display: block;
+            font-size: 0.8em;
+            color: #888;
+        }
+
+        /* Hide Clear History Button for this version */
+        #clearHistoryButton { display: none; }
+
+    </style>
+</head>
+<body>
+    <h1>Semantic History Search</h1>
+
+    <div class="dashboard-container"> {/* Apply the flex container */}
+        <div id="mainContent">
+            <div class="search-container">
+                <input type="text" id="searchInput" placeholder="Enter your search query...">
+                <button id="searchButton">Search</button>
+            </div>
+            <div id="results">
+                <div class="status-message">Enter a query and click Search to find relevant pages.</div>
+            </div>
+        </div>
+
+        <div id="sidebar">
+            <h2>Recent Activity</h2> {/* Updated Title */}
+            <ul id="recentActivityList"> {/* Updated ID */}
+                <li class="status-message" style="font-size: 0.9em; padding: 10px;">Loading recent activity...</li>
+            </ul>
+            {/* Clear History button is hidden for now as it doesn't apply directly */}
+            {/* <button id="clearHistoryButton">Clear History</button> */}
+        </div>
+    </div>
+
+    <script src="scripts/dashboard.js"></script>
+</body>
+</html>

@@ -2,62 +2,68 @@ const DB_NAME = 'semanticHistoryDB';
 const DB_VERSION = 1;
 const STORE_NAME = 'pages';
 let db = null; // Database connection reference
+let keepAliveInterval;
+
 
 
 console.log("Background service worker started.");
 
 
 
+// scripts/background.js - Replace existing initDB function
+
 function initDB() {
     return new Promise((resolve, reject) => {
+        // Don't re-initialize if connection already exists and is open
+        // Note: Simple check. Real-world might need more robust connection validation.
         if (db) {
+            // console.log('IndexedDB connection already exists.'); // Optional log
             resolve(db);
             return;
         }
-        console.log('Initializing IndexedDB...');
-        // Delete any existing database first (sometimes helps with visibility issues)
-        let deleteRequest = self.indexedDB.deleteDatabase(DB_NAME);
-        deleteRequest.onsuccess = () => {
-            console.log('Successfully deleted old database (if it existed)');
-            // Now create a fresh database
-            const request = self.indexedDB.open(DB_NAME, DB_VERSION);
-            
-            request.onupgradeneeded = (event) => {
-                console.log('IndexedDB upgrade needed.');
-                const database = event.target.result;
-                if (!database.objectStoreNames.contains(STORE_NAME)) {
-                    console.log(`Creating object store: ${STORE_NAME}`);
-                    const store = database.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
-                    // Create indexes
-                    store.createIndex('url', 'url', { unique: false });
-                    store.createIndex('timestamp', 'timestamp', { unique: false });
-                    console.log('Object store and indexes created.');
-                }
-            };
+        console.log('Initializing IndexedDB connection...');
+        const request = self.indexedDB.open(DB_NAME, DB_VERSION);
 
-            request.onsuccess = (event) => {
-                console.log('IndexedDB initialized successfully.');
-                db = event.target.result;
-                
-                // Log all object stores in this database to verify
-                console.log('Available object stores:', Array.from(db.objectStoreNames));
-                
-                resolve(db);
-            };
-
-            request.onerror = (event) => {
-                console.error('IndexedDB initialization error:', event.target.error);
-                reject(`IndexedDB error: ${event.target.error}`);
-            };
+        request.onupgradeneeded = (event) => {
+            console.log('IndexedDB upgrade needed.');
+            const database = event.target.result;
+            if (!database.objectStoreNames.contains(STORE_NAME)) {
+                console.log(`Creating object store: ${STORE_NAME}`);
+                const store = database.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
+                store.createIndex('url', 'url', { unique: false });
+                store.createIndex('timestamp', 'timestamp', { unique: false });
+                console.log('Object store and indexes created.');
+            }
+             // Handle future upgrades here if DB_VERSION increases
         };
-        
-        deleteRequest.onerror = (event) => {
-            console.error('Error deleting old database:', event.target.error);
-            // Still try to continue
-            // (rest of the code from above...)
+
+        request.onsuccess = (event) => {
+            console.log('IndexedDB initialized successfully.');
+            db = event.target.result;
+
+            // Handle connection closing unexpectedly
+            db.onclose = () => {
+                console.warn('IndexedDB connection closed unexpectedly.');
+                db = null; // Reset db variable so initDB tries to reopen next time
+            };
+            db.onerror = (event) => {
+                 console.error('IndexedDB database error:', event.target.error);
+                 // Potentially try to close and nullify db here?
+            }
+
+            console.log('Available object stores:', Array.from(db.objectStoreNames));
+            resolve(db);
+        };
+
+        request.onerror = (event) => {
+            console.error('IndexedDB initialization error:', event.target.error);
+            reject(`IndexedDB error: ${event.target.error}`);
         };
     });
 }
+
+// Keep the initial call outside listeners
+initDB().catch(error => console.error("Initial DB Init failed:", error));
 
 function addPageData(pageDataObject) {
     return new Promise(async (resolve, reject) => {
@@ -241,14 +247,97 @@ async function getEmbedding(apiKey, textToEmbed) {
     }
 }
 
+function startKeepAlive() {
+    // Already running?
+    if (keepAliveInterval) {
+        // console.log("Keepalive already running."); // Optional log
+        return;
+    }
+
+    console.log("Starting keepalive mechanism.");
+    keepAliveInterval = setInterval(() => {
+        // Simple check: if the DB connection is somehow lost, try re-initializing
+        if (!db) {
+            console.log("Keepalive: DB connection lost, attempting re-init.");
+            initDB().catch(err => console.error("Keepalive DB re-init failed:", err));
+        } else {
+            // Optional: Perform a very lightweight operation like reading version
+            // console.log("Keepalive check: DB connection seems okay."); // Can be noisy
+        }
+        // Or just log a heartbeat
+        // console.log(`Keepalive heartbeat - ${new Date().toISOString()}`); // Noisy!
+    }, 20 * 1000); // Run every 20 seconds
+}
+
+function stopKeepAlive() {
+    if (keepAliveInterval) {
+        console.log("Stopping keepalive mechanism.");
+        clearInterval(keepAliveInterval);
+        keepAliveInterval = null;
+    }
+}
+
+// --- End Keepalive logic ---
+function getRecentPagesFromDB(limit = 15) { // Default limit to 15 pages
+    return new Promise(async (resolve, reject) => {
+        try {
+            const database = await initDB(); // Ensure DB is initialized
+            const transaction = database.transaction([STORE_NAME], 'readonly');
+            const store = transaction.objectStore(STORE_NAME);
+            const index = store.index('timestamp'); // Use the timestamp index
+
+            const results = [];
+            // Open cursor on the index in descending order to get newest first
+            const cursorRequest = index.openCursor(null, 'prev');
+
+            cursorRequest.onsuccess = (event) => {
+                const cursor = event.target.result;
+                if (cursor && results.length < limit) {
+                    // Extract only needed fields to send back (avoid large textContent)
+                    const { id, url, title, timestamp, summary } = cursor.value;
+                    results.push({ id, url, title, timestamp, summary });
+                    cursor.continue();
+                } else {
+                    // Cursor finished or limit reached
+                    console.log(`BACKGROUND: Retrieved ${results.length} recent pages from DB.`);
+                    resolve(results); // Resolve the promise with the results array
+                }
+            };
+
+            cursorRequest.onerror = (event) => {
+                console.error("Error opening timestamp cursor:", event.target.error);
+                reject(event.target.error);
+            };
+
+            transaction.onerror = (event) => {
+                console.error("Read transaction error (getRecentPages):", event.target.error);
+                // Don't necessarily reject the outer promise here, cursor error handles it
+            };
+            transaction.oncomplete = () => {
+                 // Optional log: console.log("Read transaction complete (getRecentPages).");
+                 // Resolution happens in cursor.onsuccess when done
+            }
+
+        } catch (error) {
+            console.error('Failed to initiate getRecentPagesFromDB:', error);
+            reject(error);
+        }
+    });
+}
+
+
+
+
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     // Handle page data capture
     if (message.type === 'pageData') {
-        console.log("Received page data message, processing asynchronously...");
+        console.log("BACKGROUND: Received 'pageData' message type from:", sender.tab ? sender.tab.url : "Unknown Sender"); 
 
         // Process asynchronously
         (async () => {
+            console.log("BACKGROUND: Async processing started for", message.data.url);
+
             try {
                 const geminiApiKey = await chrome.storage.local.get('geminiApiKey');
 
@@ -312,10 +401,23 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         sendResponse({ status: "pending", results: [] }); // Placeholder response
         return true; // Indicate async response
     }
-
-    // Handle other message types if needed
-    // else { ... }
-
+    else if (message.type === 'getRecentActivity') {
+        console.log("BACKGROUND: Received 'getRecentActivity' message.");
+        (async () => {
+            try {
+                const recentPages = await getRecentPagesFromDB(message.limit || 15); // Use limit from message or default
+                console.log("BACKGROUND: Sending recent activity response.");
+                sendResponse({ status: 'success', data: recentPages });
+            } catch (error) {
+                console.error("BACKGROUND: Error getting recent activity:", error);
+                sendResponse({ status: 'error', message: error.message || 'Failed to retrieve recent activity' });
+            }
+        })();
+        return true; // Need return true because getRecentPagesFromDB is async
+    }
+    else {
+         console.warn("BACKGROUND: Received unknown message type:", message.type);
+    }
 }); // End of addListener
 
 // Call initDB when the service worker starts
@@ -324,20 +426,23 @@ initDB().catch(console.error);
 console.log("Background service worker started (v3 with DB & Summary Integration).");
 
 
+self.addEventListener('install', (event) => {
+    // ... install logic ...
+});
 
-  self.addEventListener('install', (event) => {
-    console.log('Service worker installing...');
-    // Force immediate activation
-    self.skipWaiting();
-  });
-  
-  self.addEventListener('activate', (event) => {
-    console.log('Service worker activated');
-    // Take control of all pages immediately
-    event.waitUntil(clients.claim());
-    // Initialize DB
-    event.waitUntil(initDB().catch(console.error));
-  });
+self.addEventListener('activate', (event) => {
+    event.waitUntil( // Ensures activation waits for these tasks
+        clients.claim()
+        .then(() => initDB()) // Initialize DB on activation
+        // .then(() => startKeepAlive()) // Optional: could start here too
+        .catch(err => console.error("Activation error:", err))
+    );
+});
+
+
+// 4. Log that script setup is complete (Top Level)
+console.log("Background script listeners attached.");
+
   
 
 // Placeholder function (will be integrated into the listener)
