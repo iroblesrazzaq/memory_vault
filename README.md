@@ -22,5 +22,6 @@ This project served as an exercise in working with MV3 constraints, asynchronous
 
 ---
 
-![Uploading Screenshot 2025-03-30 at 03.00.03.png…]()
+<img width="1586" alt="Screenshot 2025-03-30 at 03 00 03" src="https://github.com/user-attachments/assets/a36a4059-d1a6-49c1-9e79-5d4a4fdeb3e2" />
+
 
