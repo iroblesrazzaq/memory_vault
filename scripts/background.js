@@ -278,29 +278,27 @@ function stopKeepAlive() {
 }
 
 // --- End Keepalive logic ---
-function getRecentPagesFromDB(limit = 15) { // Default limit to 15 pages
+function getRecentPagesFromDB(limit = 15) {
     return new Promise(async (resolve, reject) => {
         try {
-            const database = await initDB(); // Ensure DB is initialized
+            const database = await initDB();
             const transaction = database.transaction([STORE_NAME], 'readonly');
             const store = transaction.objectStore(STORE_NAME);
-            const index = store.index('timestamp'); // Use the timestamp index
+            const index = store.index('timestamp');
 
             const results = [];
-            // Open cursor on the index in descending order to get newest first
             const cursorRequest = index.openCursor(null, 'prev');
 
             cursorRequest.onsuccess = (event) => {
                 const cursor = event.target.result;
                 if (cursor && results.length < limit) {
-                    // Extract only needed fields to send back (avoid large textContent)
-                    const { id, url, title, timestamp, summary } = cursor.value;
-                    results.push({ id, url, title, timestamp, summary });
+                    // Extract only needed fields to send back (excluding both summary and embedding)
+                    const { id, url, title, timestamp, originalWordCount } = cursor.value;
+                    results.push({ id, url, title, timestamp, originalWordCount });
                     cursor.continue();
                 } else {
-                    // Cursor finished or limit reached
                     console.log(`BACKGROUND: Retrieved ${results.length} recent pages from DB.`);
-                    resolve(results); // Resolve the promise with the results array
+                    resolve(results);
                 }
             };
 
@@ -308,22 +306,13 @@ function getRecentPagesFromDB(limit = 15) { // Default limit to 15 pages
                 console.error("Error opening timestamp cursor:", event.target.error);
                 reject(event.target.error);
             };
-
-            transaction.onerror = (event) => {
-                console.error("Read transaction error (getRecentPages):", event.target.error);
-                // Don't necessarily reject the outer promise here, cursor error handles it
-            };
-            transaction.oncomplete = () => {
-                 // Optional log: console.log("Read transaction complete (getRecentPages).");
-                 // Resolution happens in cursor.onsuccess when done
-            }
-
         } catch (error) {
             console.error('Failed to initiate getRecentPagesFromDB:', error);
             reject(error);
         }
     });
 }
+
 
 
 function calculateCosineSimilarity(vector1, vector2) {
@@ -427,39 +416,38 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                     return;
                 }
 
-                // 1. Get Summary
+                // 1. Get Summary (TEMPORARY - only used for embedding, not storage)
                 const summary = await getSummary(geminiApiKey.geminiApiKey, message.data.textContent);
 
                 if (!summary) {
                     console.warn("Failed to get summary for:", message.data.url);
-                     // Decide: Store anyway with null summary, or skip? Let's store basic info.
-                     const pageDataObject = {
+                    // Store basic info without embedding since we couldn't get a summary
+                    const pageDataObject = {
                         url: message.data.url,
                         title: message.data.title,
                         timestamp: message.data.timestamp,
-                        summary: null, // Explicitly null
-                        embedding: null, // no embedding without summary
-                        originalWordCount: message.data.wordCount // Keep original count
+                        embedding: null, // No embedding without summary
+                        originalWordCount: message.data.wordCount
                     };
                     await addPageData(pageDataObject);
                     sendResponse({ status: "warning", message: "Stored basic info, but summarization failed" });
                     return;
                 }
 
+                // 2. Generate embedding from the summary
                 const embedding = await getEmbedding(geminiApiKey.geminiApiKey, summary);
 
-
-                // 2. Prepare data for storage (embedding is null for now)
-                 const pageDataObject = {
+                // 3. Prepare data for storage (WITHOUT storing the summary)
+                const pageDataObject = {
                     url: message.data.url,
                     title: message.data.title,
                     timestamp: message.data.timestamp,
-                    summary: summary,
-                    embedding: embedding, // Placeholder for Phase 1 Embedding task
+                    embedding: embedding,
                     originalWordCount: message.data.wordCount
+                    // summary field is intentionally omitted
                 };
 
-                // 3. Store in IndexedDB
+                // 4. Store in IndexedDB
                 const storedItemId = await addPageData(pageDataObject);
                 console.log(`Successfully processed and stored page data (ID: ${storedItemId}) for:`, message.data.url);
                 sendResponse({ status: "success", message: `Data stored with ID ${storedItemId}` });

@@ -80,7 +80,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function displayRecentActivity(activityItems) {
         recentActivityList.innerHTML = ''; // Clear loading/error message
-
+    
         if (!activityItems || activityItems.length === 0) {
             const li = document.createElement('li');
             li.className = 'status-message';
@@ -90,15 +90,15 @@ document.addEventListener('DOMContentLoaded', function() {
             recentActivityList.appendChild(li);
             return;
         }
-
+    
         activityItems.forEach(item => {
             const li = document.createElement('li');
-            li.title = `Visited: ${item.url}\nClick to view stored details`; // Tooltip
-
+            li.title = `Visited: ${item.url}`; // Tooltip
+    
             const titleSpan = document.createElement('span');
             titleSpan.className = 'item-title';
             titleSpan.textContent = item.title || 'Untitled Page';
-
+    
             const urlSpan = document.createElement('span');
             urlSpan.className = 'item-url';
             // Optionally shorten URL display
@@ -108,8 +108,7 @@ document.addEventListener('DOMContentLoaded', function() {
             } catch {
                  urlSpan.textContent = item.url.substring(0, 30) + '...'; // Fallback
             }
-
-
+    
             const timestampSpan = document.createElement('span');
             timestampSpan.className = 'item-timestamp';
             try {
@@ -117,22 +116,16 @@ document.addEventListener('DOMContentLoaded', function() {
             } catch {
                  timestampSpan.textContent = 'Invalid date';
             }
-
+    
             li.appendChild(titleSpan);
             li.appendChild(urlSpan);
             li.appendChild(timestampSpan);
-
-            // Add click listener - maybe show summary or navigate?
+    
+            // Add click listener to simply open the URL when clicked
             li.addEventListener('click', () => {
-                // Option 1: Navigate to the original URL
-                // window.open(item.url, '_blank');
-
-                // Option 2: Show the stored summary in an alert (or modal)
-                alert(`Stored Summary for: ${item.title}\n\n${item.summary || '(No summary stored)'}`);
-
-                // Option 3: Future - Integrate with search results display?
+                window.open(item.url, '_blank');
             });
-
+    
             recentActivityList.appendChild(li);
         });
     }
@@ -185,10 +178,17 @@ document.addEventListener('DOMContentLoaded', function() {
             urlElem.className = 'url';
             urlElem.textContent = item.url;
             
-            // Summary
-            const summaryElem = document.createElement('div');
-            summaryElem.className = 'summary';
-            summaryElem.textContent = item.summary || 'No summary available';
+            // Information about page (replace summary with basic metadata)
+            const infoElem = document.createElement('div');
+            infoElem.className = 'info';
+            
+            // Word count if available
+            if (item.originalWordCount) {
+                const wordCountElem = document.createElement('span');
+                wordCountElem.className = 'word-count';
+                wordCountElem.textContent = `${item.originalWordCount} words`;
+                infoElem.appendChild(wordCountElem);
+            }
             
             // Similarity score
             const scoreElem = document.createElement('div');
@@ -209,7 +209,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Assemble the result item
             resultItem.appendChild(titleElem);
             resultItem.appendChild(urlElem);
-            resultItem.appendChild(summaryElem);
+            resultItem.appendChild(infoElem);
             resultItem.appendChild(scoreElem);
             resultItem.appendChild(timestampElem);
             
