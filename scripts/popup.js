@@ -5,102 +5,127 @@ document.addEventListener('DOMContentLoaded', function() {
     const storageSizeElem = document.getElementById('storageSize');
     const pageListElem = document.getElementById('pageList');
     const clearDataBtn = document.getElementById('clearData');
-    const openDashboardBtn = document.getElementById('openDashboard'); // Get the new button
+    const openDashboardBtn = document.getElementById('openDashboard');
 
-    // --- Event listener for opening the dashboard ---
+    // Constants for IndexedDB
+    const DB_NAME = 'semanticHistoryDB';
+    const STORE_NAME = 'pages';
+
+    // Open dashboard when button is clicked
     openDashboardBtn.addEventListener('click', function() {
         chrome.tabs.create({ url: chrome.runtime.getURL('dashboard.html') });
     });
 
-    // Load and display stored page data
-    function loadStoredPages() {
-      // **** IMPORTANT: This function needs to be updated later ****
-      // It currently uses chrome.storage.local which is WRONG now.
-      // For now, we leave it, but it will show outdated/incorrect info
-      // until we implement Step 3 from the plan (update popup).
-      console.warn("Popup display uses outdated storage method. Needs update in Step 3.");
+    // Load data from IndexedDB
+    function loadDataFromIndexedDB() {
+        // Display loading state
+        pageListElem.innerHTML = '<div class="empty-state">Loading recent pages...</div>';
+        
+        // Connect to background script to get data
+        chrome.runtime.sendMessage({ type: 'getRecentActivity', limit: 5 }, (response) => {
+            if (chrome.runtime.lastError) {
+                console.error("Popup: Error getting recent activity:", chrome.runtime.lastError.message);
+                pageListElem.innerHTML = '<div class="empty-state">Error loading recent pages</div>';
+                return;
+            }
 
-      chrome.storage.local.get(null, function(items) {
-        // Filter for only our old page data entries (This logic is now incorrect for IndexedDB!)
-        const pageEntries = Object.entries(items).filter(([key]) =>
-          key.startsWith('page_data_') // This prefix likely doesn't match IndexedDB items
-        );
-
-        pageCountElem.textContent = pageEntries.length; // This count is likely WRONG
-
-        let totalSize = 0;
-        pageEntries.forEach(([_, value]) => {
-          totalSize += JSON.stringify(value).length;
+            if (response && response.status === 'success') {
+                displayPages(response.data);
+                updateStats(response.data.length);
+            } else {
+                console.error("Popup: Failed to get recent activity:", response?.message);
+                pageListElem.innerHTML = '<div class="empty-state">Could not load recent pages</div>';
+            }
         });
-        storageSizeElem.textContent = `${(totalSize / 1024).toFixed(2)} KB`; // This size is likely WRONG
+    }
 
-        pageEntries.sort((a, b) => {
-          // Assuming old structure had timestamp
-          return new Date(b[1]?.timestamp || 0) - new Date(a[1]?.timestamp || 0);
-        });
-
+    // Display pages in the list
+    function displayPages(pages) {
+        // Clear the list
         pageListElem.innerHTML = '';
 
-        if (pageEntries.length === 0) {
-           const emptyMsg = document.createElement('div');
-           emptyMsg.style.padding = '10px';
-           emptyMsg.style.color = '#666';
-           emptyMsg.textContent = 'No pages stored (or using outdated display). Open Dashboard to search.';
-           pageListElem.appendChild(emptyMsg);
-           return; // Exit early
+        if (!pages || pages.length === 0) {
+            pageListElem.innerHTML = '<div class="empty-state">No pages stored yet</div>';
+            return;
         }
 
-
-        pageEntries.slice(0, 10).forEach(([key, pageData]) => {
-            // This rendering part also assumes the OLD data structure
+        // Add each page to the list
+        pages.forEach(page => {
             const pageItem = document.createElement('div');
             pageItem.className = 'page-item';
 
             const title = document.createElement('div');
-            title.style.fontWeight = 'bold';
-            title.textContent = pageData.title || 'Untitled Page (Old Data?)';
+            title.className = 'page-title';
+            title.textContent = page.title || 'Untitled Page';
 
             const url = document.createElement('div');
-            url.style.fontSize = '12px';
-            url.style.color = '#666';
-            url.textContent = pageData.url || 'No URL';
+            url.className = 'page-url';
+            url.textContent = page.url || 'No URL';
 
             const info = document.createElement('div');
-            info.style.fontSize = '12px';
-             // Adapt to new structure IF possible from old data, otherwise show placeholder
-            const wordCount = pageData.wordCount || pageData.originalWordCount;
-            const timestamp = pageData.timestamp ? new Date(pageData.timestamp).toLocaleString() : 'No Date';
-            info.textContent = `${wordCount ? wordCount + ' words - ' : ''}${timestamp}`;
+            info.className = 'page-info';
+            
+            // Format timestamp
+            let timestamp = 'Unknown date';
+            if (page.timestamp) {
+                try {
+                    const date = new Date(page.timestamp);
+                    timestamp = date.toLocaleString(undefined, { 
+                        dateStyle: 'short', 
+                        timeStyle: 'short' 
+                    });
+                } catch (e) {
+                    console.error("Error formatting date:", e);
+                }
+            }
+            
+            // Add word count if available
+            const wordCount = page.originalWordCount ? `${page.originalWordCount} words · ` : '';
+            info.textContent = `${wordCount}${timestamp}`;
 
+            // Add elements to page item
             pageItem.appendChild(title);
             pageItem.appendChild(url);
             pageItem.appendChild(info);
 
-            // Update click handler? Maybe just disable it for now.
-            pageItem.style.cursor = 'default'; // Indicate non-clickable for now
-            // pageItem.addEventListener('click', function() {
-            //     alert(`Data stored using old method. Please use search dashboard.`);
-            // });
+            // Open the page when clicked
+            pageItem.addEventListener('click', function() {
+                chrome.tabs.create({ url: page.url });
+            });
 
             pageListElem.appendChild(pageItem);
         });
-
-      });
     }
 
-    // Clear all stored data (This clears chrome.storage.local, NOT IndexedDB!)
+    // Update stats display
+    function updateStats(pageCount) {
+        pageCountElem.textContent = pageCount;
+        
+        // Request storage size from background script
+        chrome.runtime.sendMessage({ type: 'getStorageSize' }, (response) => {
+            if (response && response.status === 'success') {
+                storageSizeElem.textContent = response.size;
+            } else {
+                storageSizeElem.textContent = 'Unknown';
+            }
+        });
+    }
+
+    // Clear all stored data
     clearDataBtn.addEventListener('click', function() {
-        // **** IMPORTANT: This needs to be updated later ****
-        // It should clear IndexedDB, not chrome.storage.local
-        console.warn("Clear Data button uses outdated storage method. Needs update in Step 3.");
-        if (confirm('Are you sure you want to clear all OLD (chrome.storage.local) page data? This will NOT clear the main IndexedDB data.')) {
-            chrome.storage.local.clear(function() {
-                console.log("chrome.storage.local cleared.");
-                loadStoredPages(); // Reload the (likely empty) old data list
+        if (confirm('Are you sure you want to clear all stored page data? This cannot be undone.')) {
+            chrome.runtime.sendMessage({ type: 'clearAllData' }, (response) => {
+                if (response && response.status === 'success') {
+                    pageListElem.innerHTML = '<div class="empty-state">All data has been cleared</div>';
+                    pageCountElem.textContent = '0';
+                    storageSizeElem.textContent = '0 KB';
+                } else {
+                    alert('Error clearing data: ' + (response?.message || 'Unknown error'));
+                }
             });
         }
     });
 
     // Initial load
-    loadStoredPages();
-}); // End DOMContentLoaded
+    loadDataFromIndexedDB();
+});

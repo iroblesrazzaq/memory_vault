@@ -2,35 +2,170 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Page Text Extractor</title>
+  <title>Semantic Memory Vault</title>
   <style>
-    /* ... (keep existing styles) ... */
-    button#openDashboard { /* Style the new button */
-        background-color: #0f9d58; /* Green */
-        margin-right: 10px; /* Add space if needed */
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      width: 320px;
+      color: #333;
+      background-color: #f9f9f9;
     }
-    button#openDashboard:hover {
-         background-color: #0a8f4c;
+
+    .header {
+      background-color: #4285f4;
+      color: white;
+      padding: 15px;
+      text-align: center;
+      border-bottom: 1px solid #3367d6;
+    }
+
+    .header h1 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 500;
+    }
+
+    .subheader {
+      background-color: #f0f4ff;
+      padding: 10px 15px;
+      display: flex;
+      justify-content: space-between;
+      border-bottom: 1px solid #e0e0e0;
+    }
+
+    .stats-item {
+      font-size: 13px;
+      color: #555;
+    }
+
+    .stats-value {
+      font-weight: bold;
+      color: #4285f4;
+    }
+
+    .content {
+      padding: 15px;
+    }
+
+    .section-title {
+      font-size: 14px;
+      color: #666;
+      margin: 0 0 10px 0;
+      padding-bottom: 5px;
+      border-bottom: 1px solid #eee;
+    }
+
+    .page-list {
+      max-height: 220px;
+      overflow-y: auto;
+      margin-bottom: 15px;
+    }
+
+    .page-item {
+      padding: 10px;
+      border-bottom: 1px solid #eee;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+
+    .page-item:hover {
+      background-color: #f0f8ff;
+      transform: translateX(3px);
+    }
+
+    .page-item:last-child {
+      border-bottom: none;
+    }
+
+    .page-title {
+      font-weight: bold;
+      font-size: 13px;
+      margin-bottom: 3px;
+      color: #1a73e8;
+    }
+
+    .page-url {
+      font-size: 11px;
+      color: #0d652d;
+      margin-bottom: 3px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .page-info {
+      font-size: 11px;
+      color: #888;
+    }
+
+    .buttons {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px 15px;
+      background-color: #f5f5f5;
+      border-top: 1px solid #e0e0e0;
+    }
+
+    button {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: background-color 0.2s;
+    }
+
+    #openDashboard {
+      background-color: #4285f4;
+      color: white;
+    }
+
+    #openDashboard:hover {
+      background-color: #3367d6;
+    }
+
+    #clearData {
+      background-color: #f1f1f1;
+      color: #666;
+      border: 1px solid #ddd;
+    }
+
+    #clearData:hover {
+      background-color: #e5e5e5;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 20px;
+      color: #888;
+      font-style: italic;
+      font-size: 13px;
     }
   </style>
 </head>
 <body>
-  <h1>Page Text Extractor</h1>
-
-  <div class="stats">
-    <div>Pages stored: <span id="pageCount">0</span></div>
-    <div>Storage used: <span id="storageSize">0 KB</span></div>
+  <div class="header">
+    <h1>Semantic Memory Vault</h1>
   </div>
 
-  <h2>Recent Pages</h2>
-  <div class="page-list" id="pageList">
-    <!-- Pages will be dynamically added here -->
+  <div class="subheader">
+    <div class="stats-item">Pages: <span id="pageCount" class="stats-value">0</span></div>
+    <div class="stats-item">Storage: <span id="storageSize" class="stats-value">0 KB</span></div>
+  </div>
+
+  <div class="content">
+    <h2 class="section-title">Recent Browsing</h2>
+    <div class="page-list" id="pageList">
+      <!-- This will be populated by JavaScript -->
+      <div class="empty-state">Loading recent pages...</div>
+    </div>
   </div>
 
   <div class="buttons">
-    <!-- ADD THIS BUTTON -->
     <button id="openDashboard">Open Search Dashboard</button>
-    <button id="clearData">Clear All Data</button>
+    <button id="clearData">Clear Data</button>
   </div>
 
   <script src="scripts/popup.js"></script>
