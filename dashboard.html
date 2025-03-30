@@ -21,7 +21,6 @@
     .dashboard-container {
         display: flex;
         align-items: flex-start;
-
     }
 
     /* Left empty column for symmetry */
@@ -46,7 +45,6 @@
         border-radius: 5px;
         padding: 15px;
         background-color: #fdfdfd;
-        
     }
 
     .search-container {
@@ -169,6 +167,103 @@
     .status-message.searching {
         animation: searchPulse 1.5s infinite;
     }
+    
+    /* Settings button and modal styles */
+    .settings-button-container {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 100;
+    }
+    
+    #settingsButton {
+        background: #4285f4;
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 50px;
+        height: 50px;
+        font-size: 24px;
+        cursor: pointer;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        transition: transform 0.2s ease;
+    }
+    
+    #settingsButton:hover {
+        transform: rotate(30deg);
+    }
+    
+    /* Modal styles */
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 200;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0,0,0,0.5);
+    }
+    
+    .modal-content {
+        background-color: #fff;
+        margin: 10% auto;
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        width: 80%;
+        max-width: 500px;
+        position: relative;
+    }
+    
+    .close-button {
+        position: absolute;
+        top: 15px;
+        right: 20px;
+        font-size: 24px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+    
+    .form-group {
+        margin-bottom: 20px;
+    }
+    
+    .form-group label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: bold;
+    }
+    
+    .form-group input {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 16px;
+    }
+    
+    .form-group small {
+        display: block;
+        margin-top: 5px;
+        font-size: 12px;
+        color: #666;
+    }
+    
+    .primary-button {
+        background-color: #4285f4;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        padding: 10px 20px;
+        font-size: 16px;
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+    
+    .primary-button:hover {
+        background-color: #3367d6;
+    }
 
     /* Recent Activity Sidebar */
     #sidebar h2 {
@@ -248,6 +343,31 @@
             <ul id="recentActivityList">
                 <li class="status-message" style="font-size: 0.9em; padding: 10px;">Loading recent activity...</li>
             </ul>
+        </div>
+    </div>
+
+    <!-- Settings button (fixed in bottom right) -->
+    <div class="settings-button-container">
+        <button id="settingsButton" title="API Key Settings">⚙️</button>
+    </div>
+
+    <!-- API Key Settings Modal -->
+    <div id="apiKeyModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" id="closeModal">&times;</span>
+            <h2>API Key Settings</h2>
+            <p>Enter your Google Gemini API key to enable semantic search functionality.</p>
+            
+            <div class="form-group">
+                <label for="apiKeyInput">API Key:</label>
+                <input type="password" id="apiKeyInput" placeholder="Enter your Gemini API key">
+                <small>Your API key is stored locally and is never sent anywhere except to Google's API services.</small>
+            </div>
+            
+            <div class="form-group">
+                <button id="saveApiKey" class="primary-button">Save API Key</button>
+                <span id="apiKeyStatus" style="margin-left: 10px;"></span>
+            </div>
         </div>
     </div>
 
