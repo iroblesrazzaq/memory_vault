@@ -8,13 +8,13 @@ window.addEventListener("load", () => {
 
     console.log("Content script: 'load' event fired for top frame:", window.location.href);
 
-    // INCREASED DELAY FOR TESTING DYNAMIC SITES LIKE GITHUB
-    const executionDelay = 3000; // Try 3 seconds first, maybe increase to 5000 (5s) if needed
+
+    const executionDelay = 10000; // 10 second threshold for website so we skip 
 
     setTimeout(() => {
         console.log(`Content script: ${executionDelay}ms timeout executing...`);
         try {
-            const pageData = extractPageText(); // Assumes extractPageText() exists elsewhere in the file
+            const pageData = extractPageText();
 
             // *** DETAILED LOGGING ADDED HERE ***
             console.log("Content script: Extracted pageData object:", pageData);
@@ -24,10 +24,10 @@ window.addEventListener("load", () => {
             } else {
                  console.log("Content script: textContent seems empty.");
             }
-            // *** END OF DETAILED LOGGING ***
 
 
-            // Only send if there's a reasonable amount of text content
+
+
             if (pageData.wordCount > 10) {
                 console.log("Content script: Word count > 10. Attempting to send message...");
                 chrome.runtime.sendMessage({ type: 'pageData', data: pageData }, (response) => {
