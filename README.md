@@ -1,6 +1,6 @@
 ### Memory Vault 🧠💾 - Semantic Search Chrome Extension
 
-A proof-of-concept Chrome extension (built for a hackathon) demonstrating semantic search capabilities for local browser history.
+A Chrome extension (built for a hackathon) demonstrating semantic search capabilities for local browser history.
 
 **Core Functionality:**
 
