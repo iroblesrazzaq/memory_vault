@@ -23,6 +23,3 @@ This project served as an exercise in working with MV3 constraints, asynchronous
 ---
 
 <img width="1181" alt="Screenshot 2025-03-30 at 15 53 18" src="https://github.com/user-attachments/assets/9ce65a31-7445-4354-ada7-66d97cf6abcb" />
-
-
-

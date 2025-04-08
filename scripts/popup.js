@@ -102,13 +102,38 @@ document.addEventListener('DOMContentLoaded', function() {
         pageCountElem.textContent = pageCount;
         
         // Request storage size from background script
-        chrome.runtime.sendMessage({ type: 'getStorageSize' }, (response) => {
+        chrome.runtime.sendMessage({ type: 'getStorageEstimate' }, (response) => {
+            if (chrome.runtime.lastError) {
+                console.error("Popup: Error requesting storage estimate:", chrome.runtime.lastError.message);
+                storageSizeElem.textContent = 'Error'; // Display 'Error'
+                return;
+            }
+    
             if (response && response.status === 'success') {
-                storageSizeElem.textContent = response.size;
+                const usageBytes = response.usage;
+                // Format bytes into KB or MB for display
+                let usageFormatted;
+                if (usageBytes === undefined || usageBytes === null) {
+                     usageFormatted = 'N/A'; // Not Available
+                } else if (usageBytes < 1024) {
+                    usageFormatted = `${usageBytes} B`; // Bytes
+                } else if (usageBytes < 1024 * 1024) {
+                    // Show KB with 1 decimal place if not a whole number
+                    const kb = usageBytes / 1024;
+                    usageFormatted = `${kb % 1 === 0 ? kb : kb.toFixed(1)} KB`; // Kilobytes
+                } else {
+                    // Show MB with 2 decimal places
+                    usageFormatted = `${(usageBytes / (1024 * 1024)).toFixed(2)} MB`; // Megabytes
+                }
+                // Update the text content of the span element in popup.html
+                storageSizeElem.textContent = usageFormatted;
             } else {
-                storageSizeElem.textContent = 'Unknown';
+                // Handle failure response from background
+                console.warn("Popup: Failed to get storage estimate from background:", response?.message);
+                storageSizeElem.textContent = 'Unknown'; // Display 'Unknown'
             }
         });
+        // *** END: Replacement block ***
     }
 
     // Clear all stored data

@@ -65,6 +65,41 @@ function initDB() {
 // Keep the initial call outside listeners
 initDB().catch(error => console.error("Initial DB Init failed:", error));
 
+// inserting storage quote estimation logging function
+
+/**
+ * Estimates storage usage and quota for the extension origin.
+ * Logs the results to the console.
+ * @param {string} context - A string describing when/why the check is happening (for logging).
+ * @returns {Promise<object|null>} A promise resolving to { usage, quota } in bytes, or null on error/unavailability.
+ */
+async function estimateAndLogStorage(context = "Generic Check") {
+    try {
+        // Check if the API is available
+        if (navigator.storage && navigator.storage.estimate) {
+            const quota = await navigator.storage.estimate();
+            const usageBytes = quota.usage;
+            const quotaBytes = quota.quota;
+
+            // Format for better readability in logs
+            const usageMB = (usageBytes / (1024 * 1024)).toFixed(2);
+            const quotaMB = (quotaBytes / (1024 * 1024)).toFixed(2);
+            const percentageUsed = quotaBytes > 0 ? ((usageBytes / quotaBytes) * 100).toFixed(1) : 0;
+
+            console.log(`[Storage Estimation - ${context}] Usage: ${usageMB} MB / ${quotaMB} MB (${percentageUsed}%)`);
+
+            return { usage: usageBytes, quota: quotaBytes };
+        } else {
+            console.warn(`[Storage Estimation - ${context}] navigator.storage.estimate() API not available.`);
+            return null; // Indicate unavailability
+        }
+    } catch (error) {
+        console.error(`[Storage Estimation - ${context}] Error getting storage estimate:`, error);
+        return null; // Indicate error
+    }
+}
+
+
 function addPageData(pageDataObject) {
     return new Promise(async (resolve, reject) => {
         try {
@@ -342,66 +377,102 @@ function calculateCosineSimilarity(vector1, vector2) {
 }
 
 // Function to search pages based on query embedding
+// scripts/background.js
+
+// ... (keep existing code like initDB, calculateCosineSimilarity, etc.) ...
+
+// Function to search pages based on query embedding using a cursor
 async function searchPages(queryEmbedding, threshold = 0.5, maxResults = 10) {
-    console.log("Starting semantic search with embedding dimension:", queryEmbedding.length);
-    
+    // Validate queryEmbedding early
+    if (!queryEmbedding || !Array.isArray(queryEmbedding) || queryEmbedding.length === 0) {
+        console.error("Invalid query embedding provided to searchPages.");
+        // Return an empty array or throw an error, depending on desired behavior
+        return Promise.resolve([]); // Return empty array for consistency
+    }
+
+    console.log(`Starting semantic search with cursor. Embedding Dim: ${queryEmbedding.length}, Threshold: ${threshold}, Max Results: ${maxResults}`);
+
     return new Promise(async (resolve, reject) => {
         try {
             const database = await initDB();
             const transaction = database.transaction([STORE_NAME], 'readonly');
             const store = transaction.objectStore(STORE_NAME);
-            
-            const request = store.getAll();
-            
-            request.onsuccess = (event) => {
-                const allPages = event.target.result;
-                console.log(`Searching through ${allPages.length} pages with embeddings`);
-                
-                // Filter pages with valid embeddings
-                const pagesWithEmbeddings = allPages.filter(page => page.embedding && Array.isArray(page.embedding));
-                
-                // Calculate similarity for each page
-                const results = pagesWithEmbeddings.map(page => {
-                    const similarity = calculateCosineSimilarity(queryEmbedding, page.embedding);
-                    return {
-                        id: page.id,
-                        url: page.url,
-                        title: page.title,
-                        summary: page.summary,
-                        timestamp: page.timestamp,
-                        similarity: similarity
-                    };
-                });
-                
-                // Filter by threshold and sort by similarity (highest first)
-                const filteredResults = results
-                    .filter(result => result.similarity >= threshold)
-                    .sort((a, b) => b.similarity - a.similarity)
-                    .slice(0, maxResults);
-                
-                console.log(`Found ${filteredResults.length} relevant results above threshold ${threshold}`);
-                resolve(filteredResults);
+            const cursorRequest = store.openCursor(); // Request a cursor
+
+            const potentialResults = []; // Array to hold pages meeting the threshold
+
+            cursorRequest.onsuccess = (event) => {
+                const cursor = event.target.result;
+                if (cursor) {
+                    // --- Processing Logic for Each Record ---
+                    const page = cursor.value;
+
+                    // Check if the page has a valid embedding
+                    if (page.embedding && Array.isArray(page.embedding) && page.embedding.length === queryEmbedding.length) {
+                        // Calculate similarity
+                        const similarity = calculateCosineSimilarity(queryEmbedding, page.embedding);
+
+                        // Check if similarity meets the threshold
+                        if (similarity >= threshold) {
+                            // Store the relevant data for potential inclusion in final results
+                            // Make sure to include all fields needed by the dashboard
+                            potentialResults.push({
+                                id: page.id,
+                                url: page.url,
+                                title: page.title,
+                                // summary: page.summary, // Not stored, so keep commented out
+                                timestamp: page.timestamp,
+                                similarity: similarity,
+                                originalWordCount: page.originalWordCount // Include if dashboard uses it
+                            });
+                        }
+                    } else if (page.embedding) {
+                        // Log a warning if embedding exists but is invalid/mismatched
+                        console.warn(`Page ID ${page.id} has an invalid or mismatched dimension embedding. Skipping comparison.`);
+                    }
+                    // --- End Processing Logic ---
+
+                    cursor.continue(); // Move to the next record
+                } else {
+                    // --- No more records: Cursor iteration finished ---
+                    console.log(`Cursor finished iteration. Found ${potentialResults.length} candidate pages above threshold ${threshold}.`);
+
+                    // Sort the potential results by similarity (highest first)
+                    const sortedResults = potentialResults.sort((a, b) => b.similarity - a.similarity);
+
+                    // Slice to get only the top N results
+                    const finalResults = sortedResults.slice(0, maxResults);
+
+                    console.log(`Returning top ${finalResults.length} results.`);
+                    resolve(finalResults); // Resolve the promise with the final list
+                }
             };
-            
-            request.onerror = (event) => {
-                console.error("Error retrieving pages for search:", event.target.error);
-                reject(event.target.error);
+
+            cursorRequest.onerror = (event) => {
+                console.error("Error opening cursor for search:", event.target.error);
+                reject(event.target.error); // Reject the promise on cursor error
             };
-            
+
         } catch (error) {
-            console.error("Error during semantic search:", error);
+            // Catch errors from initDB() or transaction creation
+            console.error("Error during semantic search setup:", error);
             reject(error);
         }
     });
 }
 
+// ... (rest of your background.js code, including the message listener
+//      which calls this `searchPages` function) ...
 
 
+// scripts/background.js
+
+// ... (Make sure the estimateAndLogStorage function is defined above this listener) ...
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     // Handle page data capture
     if (message.type === 'pageData') {
-        console.log("BACKGROUND: Received 'pageData' message type from:", sender.tab ? sender.tab.url : "Unknown Sender"); 
+        console.log("BACKGROUND: Received 'pageData' message type from:", sender.tab ? sender.tab.url : "Unknown Sender");
 
         // Process asynchronously
         (async () => {
@@ -419,30 +490,36 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 // 1. Get Summary (TEMPORARY - only used for embedding, not storage)
                 const summary = await getSummary(geminiApiKey.geminiApiKey, message.data.textContent);
 
+                // Handling case where summary fails BUT we still store basic info
                 if (!summary) {
                     console.warn("Failed to get summary for:", message.data.url);
-                    // Store basic info without embedding since we couldn't get a summary
-                    const pageDataObject = {
+                    // Store basic info without embedding
+                    const pageDataObjectBasic = {
                         url: message.data.url,
                         title: message.data.title,
                         timestamp: message.data.timestamp,
                         embedding: null, // No embedding without summary
                         originalWordCount: message.data.wordCount
                     };
-                    await addPageData(pageDataObject);
+                    const storedItemIdBasic = await addPageData(pageDataObjectBasic); // Store basic data
+                    console.log(`Stored basic page data (ID: ${storedItemIdBasic}, no summary/embedding) for:`, message.data.url);
+
+                    // Still log storage after this basic add
+                    await estimateAndLogStorage(`After Basic Add (ID ${storedItemIdBasic})`);
+
                     sendResponse({ status: "warning", message: "Stored basic info, but summarization failed" });
-                    return;
+                    return; // Stop further processing for this page
                 }
 
-                // 2. Generate embedding from the summary
+                // 2. Generate embedding from the summary (only if summary was successful)
                 const embedding = await getEmbedding(geminiApiKey.geminiApiKey, summary);
 
-                // 3. Prepare data for storage (WITHOUT storing the summary)
+                // 3. Prepare data for storage (with embedding)
                 const pageDataObject = {
                     url: message.data.url,
                     title: message.data.title,
                     timestamp: message.data.timestamp,
-                    embedding: embedding,
+                    embedding: embedding, // Store the embedding if successful
                     originalWordCount: message.data.wordCount
                     // summary field is intentionally omitted
                 };
@@ -450,10 +527,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 // 4. Store in IndexedDB
                 const storedItemId = await addPageData(pageDataObject);
                 console.log(`Successfully processed and stored page data (ID: ${storedItemId}) for:`, message.data.url);
+
+                // 5. Log storage AFTER successful full add
+                // Added context including the ID for better tracking
+                await estimateAndLogStorage(`After Full Add (ID ${storedItemId})`);
+
+                // 6. Send success response
                 sendResponse({ status: "success", message: `Data stored with ID ${storedItemId}` });
 
             } catch (error) {
                 console.error("Error processing page data in background:", error);
+                // Also log storage on error to see if usage changed before failure
+                await estimateAndLogStorage("After Error in pageData");
                 sendResponse({ status: "error", message: error.message || "Unknown processing error" });
             }
         })(); // Immediately invoke the async function
@@ -462,56 +547,58 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return true;
     }
 
-    // Handle search queries (Phase 2)
+    // Handle search queries
     else if (message.type === 'searchQuery') {
         console.log("BACKGROUND: Received search query:", message.query);
-        
+
         (async () => {
             try {
                 // 1. Get the API key
                 const geminiApiKey = await chrome.storage.local.get('geminiApiKey');
-                
+
                 if (!geminiApiKey.geminiApiKey) {
                     console.error("Cannot process search: API Keys not found in storage.");
-                    sendResponse({ 
-                        status: "error", 
-                        message: "API keys not configured" 
+                    sendResponse({
+                        status: "error",
+                        message: "API keys not configured"
                     });
                     return;
                 }
-                
+
                 // 2. Get embedding for the query
                 const queryEmbedding = await getEmbedding(geminiApiKey.geminiApiKey, message.query);
-                
+
                 if (!queryEmbedding) {
                     console.error("Failed to get embedding for search query");
-                    sendResponse({ 
-                        status: "error", 
-                        message: "Failed to process search query" 
+                    sendResponse({
+                        status: "error",
+                        message: "Failed to process search query"
                     });
                     return;
                 }
-                
+
                 // 3. Search pages using the embedding
                 const searchResults = await searchPages(queryEmbedding, 0.4); // 0.4 threshold
-                
+
                 // 4. Send back results
-                sendResponse({ 
-                    status: "success", 
-                    results: searchResults 
+                sendResponse({
+                    status: "success",
+                    results: searchResults
                 });
-                
+
             } catch (error) {
                 console.error("Error processing search query:", error);
-                sendResponse({ 
-                    status: "error", 
-                    message: error.message || "Unknown search error" 
+                sendResponse({
+                    status: "error",
+                    message: error.message || "Unknown search error"
                 });
             }
         })();
-        
+
         return true; // Indicate async response
     }
+
+    // Handle requests for recent activity
     else if (message.type === 'getRecentActivity') {
         console.log("BACKGROUND: Received 'getRecentActivity' message.");
         (async () => {
@@ -526,9 +613,34 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         })();
         return true; // Need return true because getRecentPagesFromDB is async
     }
+
+    // *** NEW: Handle requests for storage estimate ***
+    else if (message.type === 'getStorageEstimate') {
+        console.log("BACKGROUND: Received 'getStorageEstimate' message.");
+        (async () => {
+            // Call the estimation function (it logs internally too)
+            const estimate = await estimateAndLogStorage("UI Request");
+            if (estimate) {
+                // Send back the raw usage and quota bytes
+                sendResponse({ status: 'success', usage: estimate.usage, quota: estimate.quota });
+            } else {
+                // Handle cases where estimation failed or API not available
+                sendResponse({ status: 'error', message: 'Could not estimate storage.' });
+            }
+        })();
+        return true; // Indicate async response
+    }
+
+    // Handle unknown message types
     else {
          console.warn("BACKGROUND: Received unknown message type:", message.type);
+         // Optional: Send a generic error response if needed, but often just logging is fine.
+         // sendResponse({status: 'error', message: `Unknown message type: ${message.type}`});
+         // If you send a response here, you might need to return false or true depending
+         // on whether the response is synchronous or asynchronous (usually false if sync).
+         // For just logging, no return true is needed.
     }
+
 }); // End of addListener
 
 // Call initDB when the service worker starts
@@ -538,14 +650,15 @@ console.log("Background service worker started (v3 with DB & Summary Integration
 
 
 self.addEventListener('install', (event) => {
-    // ... install logic ...
+    // ... install logic - TODO: implement? idk if necessary but have skeleton
 });
 
 self.addEventListener('activate', (event) => {
-    event.waitUntil( // Ensures activation waits for these tasks
+    event.waitUntil(
         clients.claim()
-        .then(() => initDB()) // Initialize DB on activation
-        // .then(() => startKeepAlive()) // Optional: could start here too
+        .then(() => initDB())
+        .then(() => estimateAndLogStorage("Activation")) // <-- Add this call
+        // .then(() => startKeepAlive()) // Keep if needed
         .catch(err => console.error("Activation error:", err))
     );
 });
