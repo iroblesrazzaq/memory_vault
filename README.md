@@ -66,7 +66,3 @@ This allows you to **search your browsing history using natural language queries
 *   **Browse:** The extension captures pages automatically in the background.
 *   **Search:** Open the Dashboard (Popup -> "Open Search Dashboard"), enter your query, and click "Search" to find relevant pages from your history.
 *   **Stats:** Click the extension icon for page count and storage estimates.
-
----
-
-*This project demonstrates skills in browser extension development, local data management (IndexedDB), asynchronous JavaScript, integrating third-party APIs (Google Gemini), and applying AI concepts (semantic search, embeddings) to solve a real-world problem.*
