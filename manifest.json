@@ -9,10 +9,10 @@
     },
   
     "icons": {
-      "16": "images/new_icon-16.png",
-      "32": "images/new_icon-32.png",
-      "48": "images/new_icon-48.png",
-      "128": "images/new_icon-128.png"
+      "16": "images/icon_16.png",
+      "32": "images/icon_32.png",
+      "48": "images/icon_48.png",
+      "128": "images/icon_128.png"
     },
     
     "permissions": [
