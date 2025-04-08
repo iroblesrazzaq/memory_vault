@@ -377,59 +377,92 @@ function calculateCosineSimilarity(vector1, vector2) {
 }
 
 // Function to search pages based on query embedding
+// scripts/background.js
+
+// ... (keep existing code like initDB, calculateCosineSimilarity, etc.) ...
+
+// Function to search pages based on query embedding using a cursor
 async function searchPages(queryEmbedding, threshold = 0.5, maxResults = 10) {
-    console.log("Starting semantic search with embedding dimension:", queryEmbedding.length);
-    
+    // Validate queryEmbedding early
+    if (!queryEmbedding || !Array.isArray(queryEmbedding) || queryEmbedding.length === 0) {
+        console.error("Invalid query embedding provided to searchPages.");
+        // Return an empty array or throw an error, depending on desired behavior
+        return Promise.resolve([]); // Return empty array for consistency
+    }
+
+    console.log(`Starting semantic search with cursor. Embedding Dim: ${queryEmbedding.length}, Threshold: ${threshold}, Max Results: ${maxResults}`);
+
     return new Promise(async (resolve, reject) => {
         try {
             const database = await initDB();
             const transaction = database.transaction([STORE_NAME], 'readonly');
             const store = transaction.objectStore(STORE_NAME);
-            
-            const request = store.getAll();
-            
-            request.onsuccess = (event) => {
-                const allPages = event.target.result;
-                console.log(`Searching through ${allPages.length} pages with embeddings`);
-                
-                // Filter pages with valid embeddings
-                const pagesWithEmbeddings = allPages.filter(page => page.embedding && Array.isArray(page.embedding));
-                
-                // Calculate similarity for each page
-                const results = pagesWithEmbeddings.map(page => {
-                    const similarity = calculateCosineSimilarity(queryEmbedding, page.embedding);
-                    return {
-                        id: page.id,
-                        url: page.url,
-                        title: page.title,
-                        summary: page.summary,
-                        timestamp: page.timestamp,
-                        similarity: similarity
-                    };
-                });
-                
-                // Filter by threshold and sort by similarity (highest first)
-                const filteredResults = results
-                    .filter(result => result.similarity >= threshold)
-                    .sort((a, b) => b.similarity - a.similarity)
-                    .slice(0, maxResults);
-                
-                console.log(`Found ${filteredResults.length} relevant results above threshold ${threshold}`);
-                resolve(filteredResults);
+            const cursorRequest = store.openCursor(); // Request a cursor
+
+            const potentialResults = []; // Array to hold pages meeting the threshold
+
+            cursorRequest.onsuccess = (event) => {
+                const cursor = event.target.result;
+                if (cursor) {
+                    // --- Processing Logic for Each Record ---
+                    const page = cursor.value;
+
+                    // Check if the page has a valid embedding
+                    if (page.embedding && Array.isArray(page.embedding) && page.embedding.length === queryEmbedding.length) {
+                        // Calculate similarity
+                        const similarity = calculateCosineSimilarity(queryEmbedding, page.embedding);
+
+                        // Check if similarity meets the threshold
+                        if (similarity >= threshold) {
+                            // Store the relevant data for potential inclusion in final results
+                            // Make sure to include all fields needed by the dashboard
+                            potentialResults.push({
+                                id: page.id,
+                                url: page.url,
+                                title: page.title,
+                                // summary: page.summary, // Not stored, so keep commented out
+                                timestamp: page.timestamp,
+                                similarity: similarity,
+                                originalWordCount: page.originalWordCount // Include if dashboard uses it
+                            });
+                        }
+                    } else if (page.embedding) {
+                        // Log a warning if embedding exists but is invalid/mismatched
+                        console.warn(`Page ID ${page.id} has an invalid or mismatched dimension embedding. Skipping comparison.`);
+                    }
+                    // --- End Processing Logic ---
+
+                    cursor.continue(); // Move to the next record
+                } else {
+                    // --- No more records: Cursor iteration finished ---
+                    console.log(`Cursor finished iteration. Found ${potentialResults.length} candidate pages above threshold ${threshold}.`);
+
+                    // Sort the potential results by similarity (highest first)
+                    const sortedResults = potentialResults.sort((a, b) => b.similarity - a.similarity);
+
+                    // Slice to get only the top N results
+                    const finalResults = sortedResults.slice(0, maxResults);
+
+                    console.log(`Returning top ${finalResults.length} results.`);
+                    resolve(finalResults); // Resolve the promise with the final list
+                }
             };
-            
-            request.onerror = (event) => {
-                console.error("Error retrieving pages for search:", event.target.error);
-                reject(event.target.error);
+
+            cursorRequest.onerror = (event) => {
+                console.error("Error opening cursor for search:", event.target.error);
+                reject(event.target.error); // Reject the promise on cursor error
             };
-            
+
         } catch (error) {
-            console.error("Error during semantic search:", error);
+            // Catch errors from initDB() or transaction creation
+            console.error("Error during semantic search setup:", error);
             reject(error);
         }
     });
 }
 
+// ... (rest of your background.js code, including the message listener
+//      which calls this `searchPages` function) ...
 
 
 // scripts/background.js
