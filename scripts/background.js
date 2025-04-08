@@ -1,7 +1,7 @@
 const DB_NAME = 'semanticHistoryDB';
 const DB_VERSION = 1;
 const STORE_NAME = 'pages';
-const MAX_PAGE_COUNT = 615; // TODO: reset to 10000 after testing for 600
+const MAX_PAGE_COUNT = 10000; // TODO: reset to 10000 after testing for 600
 let db = null;
 let keepAliveInterval;
 
