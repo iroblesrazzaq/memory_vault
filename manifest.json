@@ -1,18 +1,18 @@
 {
     "manifest_version": 3,
-    "name": "Page Text Extractor",
-    "version": "1.0",
-    "description": "Extracts and stores text content from all webpages for semantic search",
+    "name": "Semantic Search History",
+    "version": "0.9",
+    "description": "Extracts, summarizes and locally stores text content from all webpages for semantic search",
     
     "action": {
       "default_popup": "popup.html"
     },
   
     "icons": {
-      "16": "images/icon-16.png",
-      "32": "images/icon-32.png",
-      "48": "images/icon-48.png",
-      "128": "images/icon-128.png"
+      "16": "images/new_icon-16.png",
+      "32": "images/new_icon-32.png",
+      "48": "images/new_icon-48.png",
+      "128": "images/new_icon-128.png"
     },
     
     "permissions": [
