@@ -1,2 +1,4 @@
 .env
 repomix*
+node_modules/
+CPNS*
