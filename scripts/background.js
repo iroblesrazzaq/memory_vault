@@ -1,13 +1,13 @@
 const DB_NAME = 'semanticHistoryDB';
 const DB_VERSION = 1;
 const STORE_NAME = 'pages';
-let db = null; // Database connection reference
+const MAX_PAGE_COUNT = 615; // TODO: reset to 10000 after testing for 600
+let db = null;
 let keepAliveInterval;
 
 
 
-console.log("Background service worker started.");
-
+console.log(`Background service worker started. Max entries: ${MAX_PAGE_COUNT}`);
 
 
 // scripts/background.js - Replace existing initDB function
@@ -145,6 +145,128 @@ function addPageData(pageDataObject) {
 }
 
 
+/**
+ * Checks if the number of entries exceeds MAX_PAGE_COUNT and deletes the oldest entries if necessary.
+ * Logs details of the first and last entry deleted if multiple entries are removed.
+ * Logs the final count after deletion.
+ * @returns {Promise<number>} A promise that resolves with the number of entries deleted.
+ */
+async function pruneOldEntriesIfNecessary() {
+    console.log('Checking if pruning is necessary...');
+    return new Promise(async (resolve, reject) => {
+        let deleteCount = 0;
+        let firstDeletedDetails = null;
+        let lastDeletedDetails = null;
+        let actualNumberToDelete = 0;
+
+        try {
+            // --- Get database connection ---
+            // We need the 'database' variable accessible in the oncomplete scope later
+            const database = await initDB();
+            // -----------------------------
+
+            const transaction = database.transaction([STORE_NAME], 'readwrite');
+            const store = transaction.objectStore(STORE_NAME);
+            const countRequest = store.count();
+
+            countRequest.onsuccess = () => {
+                const currentCount = countRequest.result;
+                console.log(`Current entry count: ${currentCount}`);
+
+                if (currentCount <= MAX_PAGE_COUNT) {
+                    console.log('Pruning not needed.');
+                    transaction.oncomplete = () => resolve(0); // Resolve immediately on completion
+                    transaction.onerror = (event) => reject(`Transaction error (no pruning): ${event.target.error}`);
+                    return;
+                }
+
+                actualNumberToDelete = currentCount - MAX_PAGE_COUNT;
+                console.log(`Exceeds limit of ${MAX_PAGE_COUNT}. Need to delete ${actualNumberToDelete} oldest entries.`);
+
+                const timestampIndex = store.index('timestamp');
+                const cursorRequest = timestampIndex.openCursor(null, 'next');
+                let deletedSoFar = 0;
+
+                cursorRequest.onsuccess = (event) => {
+                    const cursor = event.target.result;
+                    if (cursor && deletedSoFar < actualNumberToDelete) {
+                        // ... (capture details logic remains the same) ...
+                        if (deletedSoFar === 0) { firstDeletedDetails = { title: cursor.value.title, url: cursor.value.url, timestamp: cursor.key }; }
+                        if (deletedSoFar === actualNumberToDelete - 1) { lastDeletedDetails = { title: cursor.value.title, url: cursor.value.url, timestamp: cursor.key }; }
+
+                        const deleteRequest = cursor.delete();
+                        deleteRequest.onsuccess = () => { deletedSoFar++; };
+                        deleteRequest.onerror = (event) => { console.error(`Error deleting entry ID: ${cursor.primaryKey}`, event.target.error); };
+                        cursor.continue();
+                    } else {
+                        console.log(`Finished pruning attempt. Intended: ${actualNumberToDelete}, Actual Deleted: ${deletedSoFar}`);
+                        deleteCount = deletedSoFar;
+
+                        // --- Log the captured details (logic remains the same) ---
+                        if (firstDeletedDetails) { console.log(` -> Deleted oldest entry: "${firstDeletedDetails.title}" (${firstDeletedDetails.url}), Time: ${new Date(firstDeletedDetails.timestamp).toLocaleString()}`); }
+                        if (actualNumberToDelete > 1 && lastDeletedDetails) {
+                             if (lastDeletedDetails.timestamp !== firstDeletedDetails.timestamp || lastDeletedDetails.url !== firstDeletedDetails.url) {
+                                 console.log(` -> Deleted newest of the pruned batch: "${lastDeletedDetails.title}" (${lastDeletedDetails.url}), Time: ${new Date(lastDeletedDetails.timestamp).toLocaleString()}`);
+                             } else { console.log(` -> (Only one or two entries deleted, first/last details are the same or similar)`); }
+                        } else if (actualNumberToDelete > 1 && !lastDeletedDetails) { console.warn(" -> Could not capture details for the last deleted item (unexpected)."); }
+                        // -----------------------------------------------------------
+
+                        // Resolution happens via transaction.oncomplete
+                    }
+                };
+                cursorRequest.onerror = (event) => { console.error("Error opening cursor for deletion:", event.target.error); };
+            };
+            countRequest.onerror = (event) => { console.error("Error counting entries:", event.target.error); };
+
+            // --- Modified transaction.oncomplete ---
+            transaction.oncomplete = () => {
+                console.log(`Pruning transaction completed. ${deleteCount} entries deleted in total.`);
+
+                // --- Add logic to get and log the NEW count ---
+                // Only perform the check if deletions actually happened.
+                if (deleteCount > 0) {
+                    console.log("Verifying new count after pruning...");
+                    // Use the 'database' variable obtained earlier to start a new transaction
+                    try {
+                        const checkTransaction = database.transaction([STORE_NAME], 'readonly');
+                        const checkStore = checkTransaction.objectStore(STORE_NAME);
+                        const finalCountRequest = checkStore.count();
+
+                        finalCountRequest.onsuccess = () => {
+                            console.log(` ---> New database entry count: ${finalCountRequest.result}`);
+                        };
+                        finalCountRequest.onerror = (event) => {
+                            // Log error but don't reject the original promise, as pruning succeeded
+                            console.error(" ---> Error verifying count after pruning:", event.target.error);
+                        };
+                        // Optional: Handle checkTransaction.oncomplete/onerror if needed for debugging
+                        checkTransaction.onerror = (event) => {
+                             console.error(" ---> Readonly transaction error during final count check:", event.target.error);
+                        }
+                    } catch(countError) {
+                        // Catch potential errors starting the check transaction
+                         console.error(" ---> Error initiating final count check transaction:", countError);
+                    }
+
+                }
+                // --- End new count logic ---
+
+                resolve(deleteCount); // Resolve the original promise with the count deleted
+            };
+            // --- End modified transaction.oncomplete ---
+
+            transaction.onerror = (event) => {
+                console.error('Pruning transaction error:', event.target.error);
+                reject(`Pruning transaction failed: ${event.target.error}`);
+            };
+
+        } catch (error) {
+            console.error("Error setting up pruning operation:", error);
+            reject(error);
+        }
+    });
+}
+
 async function getAllPagesWithEmbeddings() {
     console.warn("getAllPagesWithEmbeddings() not fully implemented yet.");
     // TODO: Implement actual retrieval logic in Phase 2
@@ -157,8 +279,7 @@ initDB().catch(console.error);
 console.log("Background service worker started (v2 with DB init).");
 
 const GEMINI_API_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
-// check to ensure this is correct api endpoint
-
+// TODO: switch to newer free model?
 
 async function getSummary(apiKey, textContent) {
     if (!apiKey) {
@@ -376,11 +497,6 @@ function calculateCosineSimilarity(vector1, vector2) {
     return dotProduct / (magnitude1 * magnitude2);
 }
 
-// Function to search pages based on query embedding
-// scripts/background.js
-
-// ... (keep existing code like initDB, calculateCosineSimilarity, etc.) ...
-
 // Function to search pages based on query embedding using a cursor
 async function searchPages(queryEmbedding, threshold = 0.5, maxResults = 10) {
     // Validate queryEmbedding early
@@ -461,14 +577,6 @@ async function searchPages(queryEmbedding, threshold = 0.5, maxResults = 10) {
     });
 }
 
-// ... (rest of your background.js code, including the message listener
-//      which calls this `searchPages` function) ...
-
-
-// scripts/background.js
-
-// ... (Make sure the estimateAndLogStorage function is defined above this listener) ...
-
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     // Handle page data capture
     if (message.type === 'pageData') {
@@ -503,6 +611,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                     };
                     const storedItemIdBasic = await addPageData(pageDataObjectBasic); // Store basic data
                     console.log(`Stored basic page data (ID: ${storedItemIdBasic}, no summary/embedding) for:`, message.data.url);
+                    
+
+                    await pruneOldEntriesIfNecessary();
 
                     // Still log storage after this basic add
                     await estimateAndLogStorage(`After Basic Add (ID ${storedItemIdBasic})`);
@@ -527,6 +638,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 // 4. Store in IndexedDB
                 const storedItemId = await addPageData(pageDataObject);
                 console.log(`Successfully processed and stored page data (ID: ${storedItemId}) for:`, message.data.url);
+
+                await pruneOldEntriesIfNecessary();
 
                 // 5. Log storage AFTER successful full add
                 // Added context including the ID for better tracking
@@ -666,12 +779,3 @@ self.addEventListener('activate', (event) => {
 
 // 4. Log that script setup is complete (Top Level)
 console.log("Background script listeners attached.");
-
-  
-
-// Placeholder function (will be integrated into the listener)
-// async function processPageData(pageData) {
-//   // 1. Call Summarization API - done
-//   // 2. Call Embedding API / Use Library
-//   // 3. Store final data in IndexedDB using addPageData()
-// }
