@@ -91,6 +91,9 @@ Alex discreetly opens her browser history (Ctrl+H).
 
 The standard keyword-based history is useless.
 
+![Chrome History Search Failure](images/chromehistory.jpg)
+*Chrome's keyword-based history search fails to find the CAP Theorem article with conceptual queries*
+
 **Attempt #2: Memory Vault (Success)**
 
 Frustrated, she opens her Memory Vault dashboard. Instead of guessing keywords, she types in the concept she's trying to remember:
@@ -104,6 +107,9 @@ Frustrated, she opens her Memory Vault dashboard. Instead of guessing keywords, 
 3. The result is immediate and clear. The top hit, with the highest relevance score, is the page she skimmed two weeks ago:
 
 **Result:** `What is CAP Theorem?` (from ibm.com)
+
+![Memory Vault Search Success](images/memoryvault.jpg)
+*Memory Vault immediately finds the CAP Theorem article using semantic search with natural language*
 
 She clicks the link, instantly refreshes her memory on the details, and confidently contributes to the meeting: *"I think you're referring to the CAP Theorem. The article I read suggests that for our use case, prioritizing Availability and Partition Tolerance with a system like Cassandra might be better than a traditional relational database that prioritizes Consistency."*
 
