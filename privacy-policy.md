@@ -1,6 +1,6 @@
 # Privacy Policy for Memory Vault
 
-**Last updated:** [DATE]
+**Last updated:** 20/7/2025
 
 ## Overview
 
@@ -74,8 +74,7 @@ We may update this Privacy Policy occasionally. We will notify users of signific
 ## Contact Us
 
 If you have questions about this Privacy Policy or our practices, please contact us at:
-- Email: [YOUR EMAIL]
-- GitHub: [YOUR GITHUB REPO]
+- Email: memoryvault70@gmail.com
 
 ---
 
