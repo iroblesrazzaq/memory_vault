@@ -10,7 +10,7 @@ You read an interesting article about databases weeks ago. Now in a meeting, you
 
 ## ✨ The Solution  
 
-Memory Vault uses AI to understand what pages *mean*, not just what they say. Search for `"database consistency vs availability trade-offs"` and instantly find that article about CAP Theorem you read weeks ago.
+Memory Vault uses AI to understand what pages *mean*, not just what they say. Search for `"database tradeoffs"` and instantly find that article about CAP Theorem you read weeks ago.
 
 ## 🚀 Key Features
 
@@ -34,12 +34,12 @@ Memory Vault uses AI to understand what pages *mean*, not just what they say. Se
 **Scenario:** You read about database trade-offs weeks ago. In a meeting, you need that article but can't remember the title.
 
 ### ❌ Chrome History Search
-Search: `"database consistency availability"`  
+Search: `"database tradeoffs"`  
 ![Chrome History Search Failure](images/chromehistory.jpg)
 *Results: Hundreds of irrelevant pages, but not the one you need*
 
 ### ✅ Memory Vault Search  
-Search: `"principle about choosing between consistency and availability"`  
+Search: `"database tradeoffs"`  
 ![Memory Vault Search Success](images/memoryvault.jpg)
 *Result: Instantly finds the CAP Theorem article by understanding meaning*
 
