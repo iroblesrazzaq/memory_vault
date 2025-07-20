@@ -27,6 +27,7 @@
     #leftColumn {
         flex-basis: 280px;
         flex-shrink: 0;
+        padding-right: 20px;
     }
 
     /* Center main content */
@@ -37,10 +38,18 @@
         margin: 0 auto;
     }
 
-    /* Right sidebar */
-    #sidebar {
+    /* Right sidebar container */
+    #sidebarContainer {
         flex-basis: 280px;
         flex-shrink: 0;
+        display: flex;
+        justify-content: center;
+        padding-left: 20px;
+    }
+
+    /* Right sidebar */
+    #sidebar {
+        width: 260px;
         border: 1px solid #eee;
         border-radius: 5px;
         padding: 15px;
@@ -349,11 +358,13 @@
         </div>
 
         <!-- Right sidebar with recent activity -->
-        <div id="sidebar">
-            <h2>Recent Activity</h2>
-            <ul id="recentActivityList">
-                <li class="status-message" style="font-size: 0.9em; padding: 10px;">Loading recent activity...</li>
-            </ul>
+        <div id="sidebarContainer">
+            <div id="sidebar">
+                <h2>Recent Activity</h2>
+                <ul id="recentActivityList">
+                    <li class="status-message" style="font-size: 0.9em; padding: 10px;">Loading recent activity...</li>
+                </ul>
+            </div>
         </div>
     </div>
 
