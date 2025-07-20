@@ -193,6 +193,17 @@
         transform: rotate(30deg);
     }
     
+    #settingsButton.highlight {
+        background-color: #ff6b6b;
+        box-shadow: 0 0 15px rgba(255, 107, 107, 0.7);
+    }
+    
+    @keyframes pulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.1); }
+        100% { transform: scale(1); }
+    }
+    
     /* Modal styles */
     .modal {
         display: none;
@@ -355,8 +366,18 @@
     <div id="apiKeyModal" class="modal">
         <div class="modal-content">
             <span class="close-button" id="closeModal">&times;</span>
-            <h2>API Key Settings</h2>
-            <p>Enter your Google Gemini API key to enable semantic search functionality.</p>
+            <h2>🔑 Setup Your Google Gemini API Key</h2>
+            <p><strong>Memory Vault needs your free Google Gemini API key to power semantic search.</strong></p>
+            
+            <div style="background-color: #f8f9fa; padding: 15px; border-radius: 8px; margin: 15px 0;">
+                <p style="margin: 0 0 10px 0; font-weight: bold;">Don't have an API key yet?</p>
+                <ol style="margin: 0; padding-left: 20px; font-size: 14px;">
+                    <li>Visit <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color: #4285f4;">Google AI Studio</a></li>
+                    <li>Sign in with your Google account</li>
+                    <li>Click "Create API Key" → "Create API key in new project"</li>
+                    <li>Copy the API key (starts with "AI...") and paste it below</li>
+                </ol>
+            </div>
             
             <div class="form-group">
                 <label for="apiKeyInput">API Key:</label>
@@ -367,6 +388,38 @@
             <div class="form-group">
                 <button id="saveApiKey" class="primary-button">Save API Key</button>
                 <span id="apiKeyStatus" style="margin-left: 10px;"></span>
+            </div>
+            
+            <!-- Advanced Model Settings -->
+            <div style="margin-top: 30px; border-top: 1px solid #eee; padding-top: 20px;">
+                <details id="advancedSettings">
+                    <summary style="cursor: pointer; font-weight: bold; margin-bottom: 15px;">⚙️ Advanced Model Settings</summary>
+                    
+                    <div class="form-group">
+                        <label for="summaryModelSelect">Summary Model:</label>
+                        <select id="summaryModelSelect" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                            <option value="">Auto (Use Latest Available)</option>
+                        </select>
+                        <small>Model used for generating page summaries</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="embeddingModelSelect">Embedding Model:</label>
+                        <select id="embeddingModelSelect" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                            <option value="">Auto (Use Latest Available)</option>
+                        </select>
+                        <small>Model used for semantic search embeddings</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <button id="testModels" type="button" style="background: #6c757d; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer;">Test Selected Models</button>
+                        <span id="modelTestStatus" style="margin-left: 10px; font-size: 12px;"></span>
+                    </div>
+                    
+                    <div style="background-color: #e9ecef; padding: 10px; border-radius: 4px; font-size: 12px; color: #495057;">
+                        <strong>Note:</strong> Advanced users only. "Auto" will always use the newest available model. Only change if you need to use a specific model version.
+                    </div>
+                </details>
             </div>
         </div>
     </div>

@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to Memory Vault</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            min-height: 100vh;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 16px;
+            padding: 40px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #4285f4;
+            text-align: center;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: #666;
+            font-size: 1.2em;
+            margin-bottom: 40px;
+        }
+        
+        .step {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 25px;
+            margin: 25px 0;
+            border-left: 4px solid #4285f4;
+        }
+        
+        .step h3 {
+            margin: 0 0 15px 0;
+            color: #4285f4;
+            font-size: 1.3em;
+        }
+        
+        .step p {
+            margin: 0;
+            line-height: 1.6;
+        }
+        
+        .cta-button {
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 15px 30px;
+            font-size: 1.1em;
+            cursor: pointer;
+            display: block;
+            margin: 30px auto;
+            transition: background-color 0.2s;
+        }
+        
+        .cta-button:hover {
+            background: #218838;
+        }
+        
+        .api-link {
+            background: #4285f4;
+            color: white;
+            text-decoration: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-weight: bold;
+            margin: 10px 0;
+            display: inline-block;
+        }
+        
+        .api-link:hover {
+            background: #3367d6;
+        }
+        
+        .feature {
+            text-align: center;
+            margin: 20px;
+        }
+        
+        .features {
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            margin: 40px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧠 Welcome to Memory Vault</h1>
+        <p class="subtitle">Transform your browsing history into an intelligent, searchable knowledge base</p>
+        
+        <div class="features">
+            <div class="feature">
+                <h4>🔍 Semantic Search</h4>
+                <p>Find pages by meaning, not keywords</p>
+            </div>
+            <div class="feature">
+                <h4>🤖 AI-Powered</h4>
+                <p>Uses Google Gemini for understanding</p>
+            </div>
+            <div class="feature">
+                <h4>🔒 Privacy-First</h4>
+                <p>All data stored locally in your browser</p>
+            </div>
+        </div>
+        
+        <div class="step">
+            <h3>Step 1: Get Your Free Google Gemini API Key</h3>
+            <p>Visit Google AI Studio and create a free API key. This enables the AI-powered semantic search that makes Memory Vault special.</p>
+            <a href="https://aistudio.google.com/app/apikey" target="_blank" class="api-link">Get API Key →</a>
+        </div>
+        
+        <div class="step">
+            <h3>Step 2: Configure Memory Vault</h3>
+            <p>Click the Memory Vault extension icon in your Chrome toolbar, then click "Get Started" to enter your API key.</p>
+        </div>
+        
+        <div class="step">
+            <h3>Step 3: Start Browsing!</h3>
+            <p>Memory Vault will automatically capture and process interesting pages you visit. After browsing for a bit, try searching for pages by concepts like "machine learning tutorials" or "cooking recipes".</p>
+        </div>
+        
+        <button class="cta-button" onclick="openExtension()">Open Memory Vault Now</button>
+        
+        <div style="text-align: center; margin-top: 40px; color: #666;">
+            <p>Questions? Check the <a href="https://github.com/yourusername/memory-vault" target="_blank">GitHub repository</a> for documentation and support.</p>
+        </div>
+    </div>
+    
+    <script>
+        function openExtension() {
+            // Try to open the extension popup (if possible) or dashboard
+            if (chrome && chrome.runtime) {
+                chrome.tabs.create({ url: chrome.runtime.getURL('dashboard.html#setup') });
+            } else {
+                // Fallback: just show instruction
+                alert('Click the Memory Vault extension icon in your Chrome toolbar to get started!');
+            }
+        }
+    </script>
+</body>
+</html> 

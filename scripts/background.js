@@ -1,7 +1,7 @@
 const DB_NAME = 'semanticHistoryDB';
 const DB_VERSION = 1;
 const STORE_NAME = 'pages';
-const MAX_PAGE_COUNT = 10000; // TODO: reset to 10000 after testing for 600
+const MAX_PAGE_COUNT = 10000; // Production limit for stored pages
 let db = null;
 let keepAliveInterval;
 
@@ -276,19 +276,161 @@ async function getAllPagesWithEmbeddings() {
 
 initDB().catch(console.error);
 
-console.log("Background service worker started (v2 with DB init).");
+console.log(`Memory Vault v1.0.0 initialized. Max entries: ${MAX_PAGE_COUNT}`);
 
-const GEMINI_API_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
-// TODO: switch to newer free model?
+// =============================================================================
+// MODEL CONFIGURATION - Easy to update as Google releases new models
+// =============================================================================
 
-async function getSummary(apiKey, textContent) {
+const MODEL_CONFIG = {
+    // Summary/Generation Models (ordered by preference - newest first)
+    summary: [
+        {
+            name: "Gemini 2.5 Flash Lite",
+            modelId: "gemini-2.5-flash-lite",
+            endpoint: "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent",
+            available: false, // Will be true when it exits preview
+            maxTokens: 8192
+        },
+        {
+            name: "Gemini 2.5 Flash Lite Preview",
+            modelId: "gemini-2.5-flash-lite-preview-06-17",
+            endpoint: "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite-preview-06-17:generateContent",
+            available: true, // Currently using this
+            maxTokens: 8192
+        },
+        {
+            name: "Gemini 1.5 Flash",
+            modelId: "gemini-1.5-flash",
+            endpoint: "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent",
+            available: true, // Fallback option
+            maxTokens: 8192
+        }
+    ],
+    
+    // Embedding Models (ordered by preference)
+    embedding: [
+        {
+            name: "Text Embedding 005",
+            modelId: "text-embedding-005",
+            endpoint: "https://generativelanguage.googleapis.com/v1beta/models/text-embedding-005:embedContent",
+            available: false, // Future model
+            dimensions: 768
+        },
+        {
+            name: "Text Embedding 004",
+            modelId: "text-embedding-004",
+            endpoint: "https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent",
+            available: true, // Currently using this
+            dimensions: 768
+        }
+    ]
+};
+
+// Get the best available model for a given type
+function getModelConfig(type, userPreference = null) {
+    const models = MODEL_CONFIG[type];
+    if (!models) {
+        console.error(`Unknown model type: ${type}`);
+        return null;
+    }
+    
+    // If user has a preference and it's available, use it
+    if (userPreference) {
+        const preferred = models.find(m => m.modelId === userPreference && m.available);
+        if (preferred) return preferred;
+    }
+    
+    // Otherwise, return first available model (highest preference)
+    const available = models.find(m => m.available);
+    if (available) {
+        console.log(`Using ${available.name} for ${type}`);
+        return available;
+    }
+    
+    console.error(`No available models for type: ${type}`);
+    return null;
+}
+
+// =============================================================================
+// MODEL MANAGEMENT UTILITIES
+// =============================================================================
+
+// Update model availability (call this when Google releases new models)
+function updateModelAvailability(type, modelId, available) {
+    const models = MODEL_CONFIG[type];
+    if (!models) return false;
+    
+    const model = models.find(m => m.modelId === modelId);
+    if (model) {
+        model.available = available;
+        console.log(`Updated ${model.name} availability to: ${available}`);
+        return true;
+    }
+    return false;
+}
+
+// Get all available models for user selection
+function getAvailableModels(type) {
+    const models = MODEL_CONFIG[type];
+    return models ? models.filter(m => m.available) : [];
+}
+
+// Test if a model is accessible with the given API key
+async function testModelAccess(apiKey, type, modelId) {
+    const models = MODEL_CONFIG[type];
+    if (!models) return false;
+    
+    const model = models.find(m => m.modelId === modelId);
+    if (!model) return false;
+    
+    try {
+        if (type === 'summary') {
+            const testResult = await getSummary(apiKey, "Test content", modelId);
+            return testResult !== null;
+        } else if (type === 'embedding') {
+            const testResult = await getEmbedding(apiKey, "Test content", modelId);
+            return testResult !== null;
+        }
+    } catch (error) {
+        console.log(`Model ${modelId} test failed:`, error.message);
+        return false;
+    }
+    return false;
+}
+
+// Easy developer function to enable new models
+function enableNewModel(type, modelId) {
+    console.log(`🚀 Enabling new model: ${type}/${modelId}`);
+    updateModelAvailability(type, modelId, true);
+    
+    // Optional: Test the new model with stored API key
+    chrome.storage.local.get('geminiApiKey', async (data) => {
+        if (data.geminiApiKey) {
+            const works = await testModelAccess(data.geminiApiKey, type, modelId);
+            console.log(`✅ New model ${modelId} ${works ? 'works' : 'failed'} with current API key`);
+        }
+    });
+}
+
+async function getSummary(apiKey, textContent, userPreference = null) {
     if (!apiKey) {
         console.error("Gemini API Key is missing.");
         return null;
     }
-    // Reduce text size to fit within potential token limits and speed up processing
-    // You might adjust this limit based on testing and model requirements
-    const MAX_TEXT_LENGTH = 15000; // Example limit (characters)
+    
+    // Get user model preferences
+    const userSettings = await chrome.storage.local.get(['preferredSummaryModel']);
+    const modelToUse = userPreference || userSettings.preferredSummaryModel;
+    
+    const modelConfig = getModelConfig('summary', modelToUse);
+    if (!modelConfig) {
+        console.error("No available summary model found");
+        return null;
+    }
+    
+    // Adjust text length based on model capabilities
+    const MAX_TEXT_LENGTH = Math.floor(modelConfig.maxTokens * 3); // Rough character estimate
     const truncatedText = textContent.length > MAX_TEXT_LENGTH
         ? textContent.substring(0, MAX_TEXT_LENGTH) + "..." // Indicate truncation
         : textContent;
@@ -307,10 +449,10 @@ async function getSummary(apiKey, textContent) {
         // }
     };
 
-    console.log("Requesting summary from Gemini for text length:", truncatedText.length);
+    console.log(`Requesting summary from ${modelConfig.name} for text length:`, truncatedText.length);
 
     try {
-        const response = await fetch(`${GEMINI_API_ENDPOINT}?key=${apiKey}`, {
+        const response = await fetch(`${modelConfig.endpoint}?key=${apiKey}`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -345,21 +487,28 @@ async function getSummary(apiKey, textContent) {
 }
 
 
-async function getEmbedding(apiKey, textToEmbed) {
-    // Endpoint without the API key in the query parameter
-    const embeddingEndpoint = "https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent";
+async function getEmbedding(apiKey, textToEmbed, userPreference = null) {
+    // Get user model preferences
+    const userSettings = await chrome.storage.local.get(['preferredEmbeddingModel']);
+    const modelToUse = userPreference || userSettings.preferredEmbeddingModel;
+    
+    const modelConfig = getModelConfig('embedding', modelToUse);
+    if (!modelConfig) {
+        console.error("No available embedding model found");
+        return null;
+    }
 
     try {
-        console.log("Requesting embedding for text length:", textToEmbed.length);
+        console.log(`Requesting embedding from ${modelConfig.name} for text length:`, textToEmbed.length);
 
         const requestBody = {
-            model: "models/text-embedding-004", // Specify the model being used
+            model: `models/${modelConfig.modelId}`, // Use dynamic model ID
             content: {
                 parts: [{ text: textToEmbed }] // Correct structure for embedding content
             }
         };
 
-        const response = await fetch(embeddingEndpoint, {
+        const response = await fetch(modelConfig.endpoint, {
             method: 'POST',
             headers: {
                 // *** Use the specific header for API Keys ***
@@ -744,6 +893,42 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return true; // Indicate async response
     }
 
+    // Handle model management requests
+    else if (message.type === 'getAvailableModels') {
+        const models = {
+            summary: getAvailableModels('summary'),
+            embedding: getAvailableModels('embedding')
+        };
+        sendResponse({ status: 'success', models: models });
+        return false; // Synchronous response
+    }
+
+    else if (message.type === 'testModel') {
+        (async () => {
+            try {
+                const { apiKey, type, modelId } = message;
+                const works = await testModelAccess(apiKey, type, modelId);
+                sendResponse({ status: 'success', works: works });
+            } catch (error) {
+                sendResponse({ status: 'error', message: error.message });
+            }
+        })();
+        return true; // Indicate async response
+    }
+
+    else if (message.type === 'getCurrentModels') {
+        const summaryModel = getModelConfig('summary');
+        const embeddingModel = getModelConfig('embedding');
+        sendResponse({ 
+            status: 'success', 
+            current: {
+                summary: summaryModel ? summaryModel.modelId : null,
+                embedding: embeddingModel ? embeddingModel.modelId : null
+            }
+        });
+        return false; // Synchronous response
+    }
+
     // Handle unknown message types
     else {
          console.warn("BACKGROUND: Received unknown message type:", message.type);
@@ -774,6 +959,18 @@ self.addEventListener('activate', (event) => {
         // .then(() => startKeepAlive()) // Keep if needed
         .catch(err => console.error("Activation error:", err))
     );
+});
+
+// Handle extension installation/first run
+chrome.runtime.onInstalled.addListener((details) => {
+    if (details.reason === 'install') {
+        console.log('Memory Vault installed - opening onboarding');
+        // Open onboarding page on first install
+        chrome.tabs.create({ url: chrome.runtime.getURL('onboarding.html') });
+    } else if (details.reason === 'update') {
+        console.log('Memory Vault updated to version', chrome.runtime.getManifest().version);
+        // Could show update notes in the future
+    }
 });
 
 

@@ -16,6 +16,55 @@ document.addEventListener('DOMContentLoaded', function() {
         chrome.tabs.create({ url: chrome.runtime.getURL('dashboard.html') });
     });
 
+    // Check API key status first, then load data
+    function checkApiKeyAndLoadData() {
+        chrome.storage.local.get('geminiApiKey', function(data) {
+            if (!data.geminiApiKey) {
+                showApiKeyRequired();
+            } else {
+                showApiKeyConfigured();
+                loadDataFromIndexedDB();
+            }
+        });
+    }
+
+    // Show API key setup required UI
+    function showApiKeyRequired() {
+        const apiKeyAlert = `
+            <div class="api-key-required">
+                <h3>🔑 Setup Required</h3>
+                <p>Memory Vault needs your Google Gemini API key to enable semantic search. Get your free API key and start building your searchable browsing history!</p>
+                <button class="setup-button" id="setupApiKey">Get Started →</button>
+            </div>
+        `;
+        
+        // Insert before the content div
+        const contentDiv = document.querySelector('.content');
+        contentDiv.insertAdjacentHTML('beforebegin', apiKeyAlert);
+        
+        // Add click handler for setup button
+        document.getElementById('setupApiKey').addEventListener('click', function() {
+            chrome.tabs.create({ url: chrome.runtime.getURL('dashboard.html#setup') });
+        });
+        
+        // Show basic stats but indicate limited functionality
+        pageListElem.innerHTML = '<div class="empty-state">Configure API key to start capturing pages</div>';
+        updateStats(0);
+    }
+
+    // Show API key is configured
+    function showApiKeyConfigured() {
+        const statusDiv = document.querySelector('.api-key-required');
+        if (statusDiv) {
+            statusDiv.remove();
+        }
+        
+        // Add small status indicator
+        const statusIndicator = '<div class="api-key-status">✅ API Key Configured</div>';
+        const header = document.querySelector('.header');
+        header.insertAdjacentHTML('afterend', statusIndicator);
+    }
+
     // Load data from IndexedDB
     function loadDataFromIndexedDB() {
         // Display loading state
@@ -151,6 +200,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Initial load
-    loadDataFromIndexedDB();
+    // Initial load - check API key first
+    checkApiKeyAndLoadData();
 });

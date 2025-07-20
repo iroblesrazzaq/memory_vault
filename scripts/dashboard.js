@@ -14,10 +14,24 @@ document.addEventListener('DOMContentLoaded', function() {
     const apiKeyInput = document.getElementById('apiKeyInput');
     const saveApiKeyButton = document.getElementById('saveApiKey');
     const apiKeyStatus = document.getElementById('apiKeyStatus');
+    
+    // Advanced Model Settings Elements
+    const summaryModelSelect = document.getElementById('summaryModelSelect');
+    const embeddingModelSelect = document.getElementById('embeddingModelSelect');
+    const testModelsButton = document.getElementById('testModels');
+    const modelTestStatus = document.getElementById('modelTestStatus');
 
     // --- Initial Load ---
     fetchAndDisplayRecentActivity();
     checkApiKeyStatus();
+    
+    // Check for setup hash from popup
+    if (window.location.hash === '#setup') {
+        setTimeout(() => {
+            loadApiKey();
+            apiKeyModal.style.display = 'block';
+        }, 500); // Small delay to let page load
+    }
 
     // --- Event Listeners ---
     searchButton.addEventListener('click', performSearch);
@@ -31,6 +45,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // API Key Modal Event Listeners
     settingsButton.addEventListener('click', function() {
         loadApiKey();
+        loadAvailableModels(); // Load available models when opening settings
         apiKeyModal.style.display = 'block';
     });
 
@@ -46,6 +61,11 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     saveApiKeyButton.addEventListener('click', saveApiKey);
+    
+    // Advanced Model Settings Event Listeners
+    testModelsButton.addEventListener('click', testSelectedModels);
+    summaryModelSelect.addEventListener('change', saveModelPreferences);
+    embeddingModelSelect.addEventListener('change', saveModelPreferences);
 
     // --- API Key Functions ---
     function loadApiKey() {
@@ -164,12 +184,142 @@ document.addEventListener('DOMContentLoaded', function() {
     function checkApiKeyStatus() {
         chrome.storage.local.get('geminiApiKey', function(data) {
             if (!data.geminiApiKey) {
-                // If no API key is set, show a message and possibly highlight the settings button
-                displayStatus('No API key configured. Please click the ⚙️ button to set up your API key.');
+                // If no API key is set, show a clear setup message
+                displayStatus('🔑 Setup Required: Click the ⚙️ Settings button to add your Google Gemini API key and start using Memory Vault!');
                 settingsButton.classList.add('highlight');
+                settingsButton.style.animation = 'pulse 2s infinite';
             } else {
                 // API key is set
                 settingsButton.classList.remove('highlight');
+                settingsButton.style.animation = 'none';
+            }
+        });
+    }
+
+    // =============================================================================
+    // ADVANCED MODEL SETTINGS FUNCTIONS
+    // =============================================================================
+    
+    function loadAvailableModels() {
+        chrome.runtime.sendMessage({ type: 'getAvailableModels' }, (response) => {
+            if (response && response.status === 'success') {
+                populateModelSelects(response.models);
+                loadCurrentModelPreferences();
+            }
+        });
+    }
+    
+    function populateModelSelects(models) {
+        // Clear existing options (except "Auto")
+        summaryModelSelect.innerHTML = '<option value="">Auto (Use Latest Available)</option>';
+        embeddingModelSelect.innerHTML = '<option value="">Auto (Use Latest Available)</option>';
+        
+        // Add summary models
+        models.summary.forEach(model => {
+            const option = document.createElement('option');
+            option.value = model.modelId;
+            option.textContent = `${model.name} (${model.modelId})`;
+            summaryModelSelect.appendChild(option);
+        });
+        
+        // Add embedding models
+        models.embedding.forEach(model => {
+            const option = document.createElement('option');
+            option.value = model.modelId;
+            option.textContent = `${model.name} (${model.modelId})`;
+            embeddingModelSelect.appendChild(option);
+        });
+    }
+    
+    function loadCurrentModelPreferences() {
+        chrome.storage.local.get(['preferredSummaryModel', 'preferredEmbeddingModel'], (data) => {
+            if (data.preferredSummaryModel) {
+                summaryModelSelect.value = data.preferredSummaryModel;
+            }
+            if (data.preferredEmbeddingModel) {
+                embeddingModelSelect.value = data.preferredEmbeddingModel;
+            }
+        });
+    }
+    
+    function saveModelPreferences() {
+        const preferences = {
+            preferredSummaryModel: summaryModelSelect.value || null,
+            preferredEmbeddingModel: embeddingModelSelect.value || null
+        };
+        
+        chrome.storage.local.set(preferences, () => {
+            console.log('Model preferences saved:', preferences);
+        });
+    }
+    
+    function testSelectedModels() {
+        chrome.storage.local.get('geminiApiKey', (data) => {
+            if (!data.geminiApiKey) {
+                modelTestStatus.textContent = 'Please save your API key first';
+                modelTestStatus.style.color = 'red';
+                return;
+            }
+            
+            modelTestStatus.textContent = 'Testing models...';
+            modelTestStatus.style.color = '#666';
+            testModelsButton.disabled = true;
+            
+            const tests = [];
+            
+            // Test summary model
+            if (summaryModelSelect.value) {
+                tests.push({
+                    type: 'summary',
+                    modelId: summaryModelSelect.value,
+                    name: summaryModelSelect.selectedOptions[0].textContent
+                });
+            }
+            
+            // Test embedding model
+            if (embeddingModelSelect.value) {
+                tests.push({
+                    type: 'embedding',
+                    modelId: embeddingModelSelect.value,
+                    name: embeddingModelSelect.selectedOptions[0].textContent
+                });
+            }
+            
+            if (tests.length === 0) {
+                modelTestStatus.textContent = 'Using auto model selection - no specific tests needed';
+                modelTestStatus.style.color = 'green';
+                testModelsButton.disabled = false;
+                return;
+            }
+            
+            // Run tests sequentially
+            runModelTests(data.geminiApiKey, tests, 0);
+        });
+    }
+    
+    function runModelTests(apiKey, tests, index) {
+        if (index >= tests.length) {
+            modelTestStatus.textContent = 'All selected models work correctly!';
+            modelTestStatus.style.color = 'green';
+            testModelsButton.disabled = false;
+            return;
+        }
+        
+        const test = tests[index];
+        chrome.runtime.sendMessage({ 
+            type: 'testModel', 
+            apiKey: apiKey, 
+            type: test.type, 
+            modelId: test.modelId 
+        }, (response) => {
+            if (response && response.status === 'success' && response.works) {
+                // Test passed, continue with next
+                runModelTests(apiKey, tests, index + 1);
+            } else {
+                // Test failed
+                modelTestStatus.textContent = `❌ ${test.name} failed - check API key or model availability`;
+                modelTestStatus.style.color = 'red';
+                testModelsButton.disabled = false;
             }
         });
     }

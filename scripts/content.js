@@ -31,7 +31,7 @@ window.addEventListener("load", () => {
             console.log("  - URL:", pageData.url);
             console.log("  - Original Word Count:", pageData.originalWordCount);
             console.log("  - Word Count Sent:", pageData.processedText.split(/\s+/).filter(Boolean).length);
-            // console.log("  - Text Sent (first 300 chars):", pageData.processedText.substring(0, 300) + "..."); // Uncomment for debugging text
+            console.log("  - Text Sent (first 300 chars):", pageData.processedText.substring(0, 300) + "..."); // Uncomment for debugging text
 
             // Check original word count against threshold
             if (pageData.originalWordCount > MIN_WORD_COUNT_THRESHOLD) {
