@@ -136,23 +136,13 @@
             <p>Memory Vault will automatically capture and process interesting pages you visit. After browsing for a bit, try searching for pages by concepts like "machine learning tutorials" or "cooking recipes".</p>
         </div>
         
-        <button class="cta-button" onclick="openExtension()">Open Memory Vault Now</button>
+        <button class="cta-button">Open Memory Vault Now</button>
         
         <div style="text-align: center; margin-top: 40px; color: #666;">
             <p>Questions? Check the <a href="https://github.com/yourusername/memory-vault" target="_blank">GitHub repository</a> for documentation and support.</p>
         </div>
     </div>
     
-    <script>
-        function openExtension() {
-            // Try to open the extension popup (if possible) or dashboard
-            if (chrome && chrome.runtime) {
-                chrome.tabs.create({ url: chrome.runtime.getURL('dashboard.html#setup') });
-            } else {
-                // Fallback: just show instruction
-                alert('Click the Memory Vault extension icon in your Chrome toolbar to get started!');
-            }
-        }
-    </script>
+    <script src="scripts/onboarding.js"></script>
 </body>
 </html> 
