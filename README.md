@@ -46,6 +46,76 @@ This allows you to **search your browsing history using natural language queries
 
 ---
 
+## Real-World Example: "The Forgotten Theorem"
+
+This example demonstrates how Memory Vault helps a developer solve a common, high-stakes problem that standard browser history fails to address.
+
+### The Article
+Let's say a developer is casually browsing one afternoon and spends five minutes reading this excellent, in-depth article from IBM's blog:
+
+**Article Link:** [What is CAP Theorem?](https://www.ibm.com/topics/cap-theorem) on the IBM Blog.
+
+This article explains a fundamental concept in distributed systems: the trade-off between Consistency, Availability, and Partition Tolerance. It's dense, valuable, and easy to forget the exact name of.
+
+### The Step-by-Step Scenario
+
+#### Part 1: The Casual Encounter (The "Saving")
+
+On a Tuesday, a software developer named Alex follows a link from a tech newsletter. She lands on the IBM article about the CAP Theorem. She finds it insightful, skims the main points about how you can only pick two of the three guarantees (Consistency, Availability, Partition Tolerance), and thinks, "Huh, that's interesting."
+
+Then, she gets a Slack message, switches tasks, and completely forgets about the article.
+
+**In the background, Memory Vault does its job:**
+
+1. It detects she's on a page with significant content.
+2. It uses `@mozilla/readability` to extract the core text, ignoring the IBM header, footer, and ads. The extracted text contains rich concepts like "distributed database systems," "trade-offs between consistency and availability," and "network failures."
+3. It sends this text to the Gemini API to generate a vector embedding—a numerical representation of the article's meaning.
+4. It stores this embedding locally along with the URL, the title ("What is CAP Theorem?"), and the timestamp.
+
+#### Part 2: The Urgent Need (The "Problem")
+
+Two weeks later, Alex is in a critical system design meeting. The team is deciding on a database for a new microservice that needs to be highly scalable.
+
+A senior architect says, **"The key issue is whether we prioritize perfect data consistency or 100% uptime during a network partition. We can't have both."**
+
+Alex's mind clicks. She remembers reading something about this exact trade-off. It was a formal concept, a "theorem" or a "principle." But she can't remember the name.
+
+#### Part 3: The Search (The "Solution")
+
+**Attempt #1: Standard Browser History (Failure)**
+
+Alex discreetly opens her browser history (Ctrl+H).
+- She searches for `database tradeoff`. The IBM article doesn't appear in the top results because those exact words aren't in the title.
+- She tries `consistency vs availability`. Her history is flooded with dozens of results from Stack Overflow, other documentation, and articles about different topics. It's too much noise.
+- She can't search for "CAP Theorem" because she has forgotten the name.
+
+The standard keyword-based history is useless.
+
+**Attempt #2: Memory Vault (Success)**
+
+Frustrated, she opens her Memory Vault dashboard. Instead of guessing keywords, she types in the concept she's trying to remember:
+
+**Search Query:** `The principle that says a database has to choose between consistency and availability during a network failure`
+
+**This is where the magic happens:**
+
+1. Memory Vault takes her natural language query and generates a new vector embedding from it.
+2. It efficiently scans the embeddings of her past browsing history, calculating the "semantic distance" between her query and every page she's visited.
+3. The result is immediate and clear. The top hit, with the highest relevance score, is the page she skimmed two weeks ago:
+
+**Result:** `What is CAP Theorem?` (from ibm.com)
+
+She clicks the link, instantly refreshes her memory on the details, and confidently contributes to the meeting: *"I think you're referring to the CAP Theorem. The article I read suggests that for our use case, prioritizing Availability and Partition Tolerance with a system like Cassandra might be better than a traditional relational database that prioritizes Consistency."*
+
+### Why This is a Great Example
+
+- **It's Realistic:** Developers constantly absorb information passively and need to recall it later under pressure.
+- **It Highlights the Core Flaw of Keywords:** You can't search for something if you've forgotten the specific name or title.
+- **It Showcases the Power of Semantics:** The user searched for a description of a concept, and the tool found the page that defined that concept.
+- **It Demonstrates Clear ROI:** It transforms a forgotten, passive browsing moment into actionable knowledge that solves a real-world problem.
+
+---
+
 ## Installation
 
 **From Chrome Web Store:** [Link coming soon - currently under review]
