@@ -6,7 +6,7 @@
 
 ## 🎯 The Problem
 
-You read an interesting article about databases weeks ago. Now in a meeting, you need that specific article but can't remember the title. Chrome history search fails because you can only search by keywords, not concepts.
+You read an interesting article about databases weeks ago. Now in a meeting, you need that specific article but can't remember the title. Chrome history search fails because you can only search by keywords in the title and url, not concepts.
 
 ## ✨ The Solution  
 
@@ -36,7 +36,7 @@ Memory Vault uses AI to understand what pages *mean*, not just what they say. Se
 ### ❌ Chrome History Search
 Search: `"database tradeoffs"`  
 ![Chrome History Search Failure](images/chromehistory.jpg)
-*Results: Hundreds of irrelevant pages, but not the one you need*
+*Result: No results because phrase database tradeoffs is not in the title or url*
 
 ### ✅ Memory Vault Search  
 Search: `"database tradeoffs"`  
