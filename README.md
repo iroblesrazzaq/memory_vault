@@ -2,8 +2,6 @@
 
 **Find any page you've read by meaning, not keywords. Transform your browsing history into an intelligent, searchable knowledge base.**
 
-![Memory Vault Demo](images/memory-vault-success.png)
-
 ## 🎯 The Problem
 
 You read an interesting article about databases weeks ago. Now in a meeting, you need that specific article but can't remember the title. Chrome history search fails because you can only search by keywords in the title and url, not concepts.
