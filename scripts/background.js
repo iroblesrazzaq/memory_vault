@@ -726,6 +726,70 @@ async function searchPages(queryEmbedding, threshold = 0.5, maxResults = 10) {
     });
 }
 
+/**
+ * Clears all stored data from IndexedDB and chrome.storage
+ * @returns {Promise<void>} A promise that resolves when all data is cleared
+ */
+async function clearAllData() {
+    console.log('Starting clearAllData operation...');
+    return new Promise(async (resolve, reject) => {
+        try {
+            // Clear IndexedDB
+            const database = await initDB();
+            const transaction = database.transaction([STORE_NAME], 'readwrite');
+            const store = transaction.objectStore(STORE_NAME);
+            
+            const clearRequest = store.clear();
+            
+            clearRequest.onsuccess = () => {
+                console.log('IndexedDB cleared successfully');
+            };
+            
+            clearRequest.onerror = (event) => {
+                console.error('Error clearing IndexedDB:', event.target.error);
+                reject(`Error clearing IndexedDB: ${event.target.error}`);
+                return;
+            };
+            
+            transaction.oncomplete = async () => {
+                try {
+                    // Get API key before clearing to preserve user setup
+                    const apiKeyData = await chrome.storage.local.get('geminiApiKey');
+                    
+                    // Clear chrome.storage.local
+                    await chrome.storage.local.clear();
+                    
+                    // Restore API key if it existed
+                    if (apiKeyData.geminiApiKey) {
+                        await chrome.storage.local.set({ geminiApiKey: apiKeyData.geminiApiKey });
+                        console.log('Chrome storage cleared successfully (API key preserved)');
+                    } else {
+                        console.log('Chrome storage cleared successfully');
+                    }
+                    
+                    // Log storage after clearing
+                    await estimateAndLogStorage("After Clear All Data");
+                    
+                    console.log('All data cleared successfully');
+                    resolve();
+                } catch (storageError) {
+                    console.error('Error clearing chrome storage:', storageError);
+                    reject(`Error clearing chrome storage: ${storageError.message}`);
+                }
+            };
+            
+            transaction.onerror = (event) => {
+                console.error('Transaction error during clear:', event.target.error);
+                reject(`Transaction error during clear: ${event.target.error}`);
+            };
+            
+        } catch (error) {
+            console.error('Failed to initiate clearAllData:', error);
+            reject(error);
+        }
+    });
+}
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     // Handle page data capture
     if (message.type === 'pageData') {
@@ -927,6 +991,21 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             }
         });
         return false; // Synchronous response
+    }
+
+    // Handle clear all data requests
+    else if (message.type === 'clearAllData') {
+        console.log("BACKGROUND: Received 'clearAllData' message.");
+        (async () => {
+            try {
+                await clearAllData();
+                sendResponse({ status: 'success', message: 'All data cleared successfully' });
+            } catch (error) {
+                console.error("BACKGROUND: Error clearing data:", error);
+                sendResponse({ status: 'error', message: error.message || 'Failed to clear data' });
+            }
+        })();
+        return true; // Indicate async response
     }
 
     // Handle unknown message types
