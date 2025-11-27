@@ -2,7 +2,7 @@
 
 // --- Configuration ---
 const MIN_WORD_COUNT_THRESHOLD = 50; // Increased threshold slightly, as main content should be richer
-const MAX_WORDS_TO_SEND = 500; // Max words to send to background for processing
+const MAX_WORDS_TO_SEND = 3000; // Max words to send to background for processing (allows for 500-word summaries)
 const EXECUTION_DELAY = 10000; // Reduced delay slightly as Readability might be faster/more reliable
 
 // --- Event Listener ---

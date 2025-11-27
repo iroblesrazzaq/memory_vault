@@ -283,20 +283,20 @@ console.log(`Memory Vault v1.0.0 initialized. Max entries: ${MAX_PAGE_COUNT}`);
 // =============================================================================
 
 const MODEL_CONFIG = {
-    // Summary/Generation Models (ordered by preference - newest first)
+    // Summary/Generation Models (ordered by preference - newest/cheapest first)
     summary: [
         {
             name: "Gemini 2.5 Flash Lite",
             modelId: "gemini-2.5-flash-lite",
             endpoint: "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent",
-            available: false, // Will be true when it exits preview
+            available: true, // Stable and cheapest option ($0.10/M input, $0.40/M output)
             maxTokens: 8192
         },
         {
             name: "Gemini 2.5 Flash Lite Preview",
             modelId: "gemini-2.5-flash-lite-preview-06-17",
             endpoint: "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite-preview-06-17:generateContent",
-            available: true, // Currently using this
+            available: true, // Fallback preview version
             maxTokens: 8192
         },
         {
@@ -435,10 +435,15 @@ async function getSummary(apiKey, textContent, userPreference = null) {
         ? textContent.substring(0, MAX_TEXT_LENGTH) + "..." // Indicate truncation
         : textContent;
 
+    // Determine summary length based on content length
+    // For longer content (>1000 words), request a more comprehensive 500-word summary
+    const wordCount = truncatedText.split(/\s+/).filter(Boolean).length;
+    const summaryLength = wordCount > 1000 ? "approximately 500 words" : "150-300 words";
+    
     const requestBody = {
         contents: [{
             parts: [{
-                text: `Please provide a concise summary, 150-300 words of the following web page content:\n\n${truncatedText}`
+                text: `Please provide a concise summary (${summaryLength}) of the following web page content:\n\n${truncatedText}`
             }]
         }],
         // Optional: Add safetySettings, generationConfig if needed
