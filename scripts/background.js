@@ -386,7 +386,7 @@ async function testModelAccess(apiKey, type, modelId) {
     
     try {
         if (type === 'summary') {
-            const testResult = await getSummary(apiKey, "Test content", modelId);
+            const testResult = await getSummary(apiKey, "Test content", null, modelId);
             return testResult !== null;
         } else if (type === 'embedding') {
             const testResult = await getEmbedding(apiKey, "Test content", modelId);
@@ -413,7 +413,7 @@ function enableNewModel(type, modelId) {
     });
 }
 
-async function getSummary(apiKey, textContent, userPreference = null) {
+async function getSummary(apiKey, textContent, originalWordCount = null, userPreference = null) {
     if (!apiKey) {
         console.error("Gemini API Key is missing.");
         return null;
@@ -435,10 +435,9 @@ async function getSummary(apiKey, textContent, userPreference = null) {
         ? textContent.substring(0, MAX_TEXT_LENGTH) + "..." // Indicate truncation
         : textContent;
 
-    // Determine summary length based on content length
+    // Determine summary length based on ORIGINAL content length (before truncation)
     // For longer content (>1000 words), request a more comprehensive 500-word summary
-    const wordCount = truncatedText.split(/\s+/).filter(Boolean).length;
-    const summaryLength = wordCount > 1000 ? "approximately 500 words" : "150-300 words";
+    const summaryLength = (originalWordCount && originalWordCount > 1000) ? "approximately 500 words" : "150-300 words";
     
     const requestBody = {
         contents: [{
@@ -814,7 +813,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 }
 
                 // 1. Get Summary (TEMPORARY - only used for embedding, not storage)
-                const summary = await getSummary(geminiApiKey.geminiApiKey, message.data.textContent);
+                // Pass originalWordCount to determine summary length (500 words for long pages)
+                const summary = await getSummary(geminiApiKey.geminiApiKey, message.data.textContent, message.data.wordCount);
 
                 // Handling case where summary fails BUT we still store basic info
                 if (!summary) {
